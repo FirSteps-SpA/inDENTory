@@ -65,7 +65,7 @@ This is the first feature to implement domain behavior directly — most princip
 | III. Interfaz Táctil para Entornos Clínicos | PASS | Registration/consumption/scan-trigger controls are the first real screens built under the ≥48x48px convention established in feature 001's Tailwind setup. |
 | IV. Trazabilidad y Alertas de Inventario | PASS (alerts deferred) | Batch/lote data (número de lote, fecha de caducidad, proveedor-less for now) and the append-only movement ledger directly implement this principle's traceability half. Visual expiry/stock-mínimo *alerts* are explicitly out of scope per spec Assumptions — a future feature builds the alert UI on top of this data; that phased delivery does not violate the principle since the underlying data it needs already exists after this feature. |
 | V. Búsqueda Manual Ágil como Flujo Primario | PASS | This feature *is* the principle: manual search is FR-001/FR-004's immediate default; scanning is only reachable via the explicit action in FR-008/FR-009, never auto-activated. |
-| VI. Control Multi-Usuario | PASS (dependency noted) | FR-005/FR-013 require an authenticated user to attribute every movement. **Dependency**: no sign-in UI exists yet anywhere in the codebase (feature 001 only scaffolded the Supabase *client*, not authentication — see its plan.md Constitution Check, corrected during `/speckit-analyze` to explicitly defer auth). This feature's own scope (per spec Assumptions) excludes building login UX. Recommendation: specify and implement a dedicated "inicio de sesión de personal clínico" feature before or alongside this one; see research.md for how this plan stays unblocked in the meantime. |
+| VI. Control Multi-Usuario | PASS | FR-005/FR-013 require an authenticated user to attribute every movement. **Resolved**: `003-login-personal-clinico` was specified and implemented independently (now merged into `develop`) exactly per this plan's original recommendation, and exposes `getUsuarioActualId()` (`src/stores/authStore.ts`) for this feature's movement-creation code to read — no dependency gap remains. |
 | Pila Tecnológica Obligatoria | PASS | Adds `@zxing/browser` for the mandated "captura óptica" stack item (feature 001 explicitly deferred this choice here); every other choice reuses the existing mandated stack with no substitution. |
 
 Result: **PASS** — no constitution violations to justify in Complexity Tracking. One external
@@ -110,8 +110,6 @@ inDENTory/
 │   │       │   ├── ScanButton.tsx         # explicit opt-in trigger — FR-008/009
 │   │       │   ├── RegistroForm.tsx       # US1
 │   │       │   └── ConsumoForm.tsx        # US2
-│   │       ├── hooks/
-│   │       │   └── useInsumoSearch.ts
 │   │       └── lib/
 │   │           ├── fefo.ts                # lot-selection algorithm — FR-006
 │   │           ├── quantity.ts            # decimal/integer validation by unit — FR-016
@@ -121,7 +119,7 @@ inDENTory/
 │   │   └── inventoryStore.ts          # NEW — Zustand cache of insumos/lotes for search+forms
 │   ├── lib/
 │   │   ├── db/
-│   │   │   └── index.ts               # (existing stub) — gains the v1 Dexie schema this feature defines
+│   │   │   └── index.ts               # (existing) — gains the v2 Dexie schema this feature defines (v1 is 003's usuarioActual)
 │   │   ├── supabase/                  # (existing) client + connection check
 │   │   ├── sync/
 │   │   │   └── reconcileOverdraft.ts  # NEW — FR-014 overdraft-flagging reconciliation

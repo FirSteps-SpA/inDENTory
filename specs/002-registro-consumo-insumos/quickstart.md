@@ -46,10 +46,12 @@ cambia.
 ## Scenario 5 — Escaneo opcional con fallback (User Story 3, FR-008/009/010/011)
 
 1. Abrir el formulario de registro o consumo. Confirmar que la cámara no está activa.
-2. Pulsar "Escanear". Apuntar a un código de barras/DataMatrix conocido.
+2. Pulsar "Escanear". Apuntar a un código de barras/DataMatrix conocido, cronometrando desde que
+   se pulsa "Escanear" hasta que el insumo/lote queda seleccionado.
 
    **Expected outcome**: el insumo/lote correspondiente queda seleccionado, igual que por
-   búsqueda manual.
+   búsqueda manual, en menos tiempo que completar la misma búsqueda escribiendo manualmente
+   (SC-005) — repetir la búsqueda manual del mismo insumo y comparar ambos tiempos.
 3. Repetir, pero apuntar a un código no reconocido (o denegar el permiso de cámara).
 
    **Expected outcome**: mensaje explícito; el formulario permite continuar por búsqueda manual
@@ -79,6 +81,6 @@ revierte); el lote queda con `estado: 'revision'` y su stock derivado puede qued
 | 2 | User Story 2, FR-006 |
 | 3 | FR-007, SC-003 |
 | 4 | FR-016 |
-| 5 | User Story 3, FR-008, FR-009, FR-010, FR-011 |
+| 5 | User Story 3, FR-008, FR-009, FR-010, FR-011, SC-005 |
 | 6 | FR-015 |
 | 7 | FR-014, Edge Cases, Clarifications Q1 |

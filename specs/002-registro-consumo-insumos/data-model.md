@@ -33,6 +33,7 @@ Represents one received batch of an Insumo (spec Key Entities).
 | `id` | `string` (UUID) | Primary key |
 | `insumoId` | `string` (UUID) | FK → Insumo |
 | `numeroLote` | `string` | Manufacturer/internal lot number (FR-002) |
+| `proveedor` | `string` | Supplier name, required per Constitution Principle IV (FR-002) |
 | `fechaCaducidad` | `string` (ISO date) | Drives FEFO ordering (FR-006) and the future alerts feature |
 | `codigoFabricante` | `string \| null` | Optional lot-specific barcode/DataMatrix payload (FR-010) |
 | `estado` | `"activo" \| "revision"` | `"revision"` set by the overdraft reconciliation (FR-014); never blocks further writes, just surfaces for manual follow-up |
@@ -71,8 +72,12 @@ not by a database-level trigger, to keep the local-first Dexie writes simple.
 
 ## Dexie schema (local)
 
+`003-login-personal-clinico` already claimed `db.version(1)` for its `usuarioActual` table
+(`src/lib/db/index.ts`) — this feature adds its tables as `version(2)`; Dexie carries the
+unchanged `usuarioActual` table forward automatically, so it doesn't need to be repeated here.
+
 ```ts
-db.version(1).stores({
+db.version(2).stores({
   insumos: 'id, nombre, categoria, codigoFabricante',
   lotes: 'id, insumoId, fechaCaducidad, codigoFabricante, estado',
   movimientos: 'id, loteId, tipo, usuarioId, creadoEn, sincronizado',

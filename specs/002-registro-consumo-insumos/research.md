@@ -18,28 +18,18 @@
   commercial SDK (e.g., Dynamsoft) — rejected, licensing cost not justified for a first
   implementation.
 
-## Authenticated user identity (dependency, not a library choice)
+## Authenticated user identity
 
-- **Decision**: This feature does **not** build sign-in UI. It requires *some* authenticated
-  Supabase user to exist so FR-005/FR-013 can attribute movements — the plan's Constitution Check
-  flags this as an external dependency. Recommendation: specify and implement a dedicated
-  "inicio de sesión de personal clínico" feature (its own UX decisions — session persistence
-  offline, shared-tablet quick-switch between staff, etc. — deserve their own spec, not a
-  two-line stub).
-- **Rationale**: Login/session UX has real product decisions of its own (per constitution's
-  clinical/offline context) that don't belong bundled invisibly into an inventory feature's plan.
-  Silently building full auth here would be undisciplined scope creep in the other direction from
-  the `/speckit-analyze` finding on feature 001 (which corrected an *overclaimed* auth checkbox).
-- **How this plan stays unblocked**: tasks/tests for this feature use a Supabase user created
-  directly in the dev project's dashboard (or via the Supabase Admin API in a test setup script),
-  read through `supabase.auth.getSession()` (already scaffolded in feature 001's
-  `useBackendConnection`). The movement-creation code takes a `userId: string` parameter — it
-  does not care *how* that id was obtained, so swapping in a real sign-in feature later requires
-  no changes to this feature's domain logic.
-- **Alternatives considered**: Building a minimal login form as part of this feature —
-  rejected for the scope-discipline reason above. Hardcoding a fake "dev user" constant — rejected
-  because it would silently violate FR-013's traceability requirement in a way that's easy to
-  forget to remove.
+- **Update (resolved)**: `003-login-personal-clinico` has since been specified, planned, and
+  implemented independently (merged into `develop`), exactly as this section originally
+  recommended. It exposes a stable accessor, `getUsuarioActualId()` in `src/stores/authStore.ts`
+  — explicitly documented there as the id future inventory features (this one) must use for
+  `Movimiento.usuarioId`. Tasks for this feature use that accessor directly; no placeholder or
+  dashboard-created test user is needed anymore.
+- **Original decision (kept for history)**: This feature does not build sign-in UI itself — that
+  judgment call is what led to specifying 003 as a separate, independent feature rather than
+  bundling login UX (session persistence offline, shared-tablet quick-switch between staff, etc.)
+  invisibly into an inventory feature's plan.
 
 ## FEFO (First-Expire-First-Out) lot selection
 

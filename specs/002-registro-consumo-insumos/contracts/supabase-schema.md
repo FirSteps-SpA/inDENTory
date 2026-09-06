@@ -23,6 +23,7 @@ create table lotes (
   id uuid primary key,
   insumo_id uuid not null references insumos(id),
   numero_lote text not null,
+  proveedor text not null,
   fecha_caducidad date not null,
   codigo_fabricante text,
   estado text not null default 'activo' check (estado in ('activo', 'revision')),

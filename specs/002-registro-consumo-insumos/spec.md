@@ -119,7 +119,10 @@ correspondiente queda seleccionado igual que si se hubiera elegido manualmente.
   búsqueda manual (texto, categoría o selección rápida) como método inmediato y por defecto, sin
   activar la cámara automáticamente.
 - **FR-002**: Al registrar un lote, el sistema DEBE capturar como mínimo: insumo, número de lote,
-  fecha de caducidad y cantidad recibida.
+  fecha de caducidad, cantidad recibida y proveedor.
+- **FR-002a**: El sistema DEBE permitir capturar opcionalmente, tanto al crear un insumo como al
+  registrar un lote, un código de barras/DataMatrix de fabricante, para que el escaneo (FR-010)
+  tenga algo contra qué coincidir.
 - **FR-003**: Si la búsqueda manual no encuentra un insumo coincidente durante el registro, el
   sistema DEBE permitir crear una nueva entrada de catálogo sin salir del flujo de registro.
 - **FR-004**: El sistema DEBE permitir registrar el consumo de un insumo mediante el mismo
@@ -164,7 +167,7 @@ correspondiente queda seleccionado igual que si se hubiera elegido manualmente.
   gasas). Atributos clave: nombre, categoría, unidad de medida (indica si acepta cantidades
   decimales, p. ej. mL/g, o solo enteras, p. ej. piezas/cajas).
 - **Lote**: Una entrega específica de un insumo. Atributos clave: número de lote, fecha de
-  caducidad, cantidad disponible, insumo al que pertenece.
+  caducidad, cantidad disponible, proveedor, insumo al que pertenece.
 - **Movimiento**: Un registro de ingreso, consumo o ajuste correctivo. Atributos clave: tipo
   (ingreso/consumo/ajuste), cantidad, lote afectado, usuario que lo realizó, fecha/hora. Es
   inmutable una vez guardado — las correcciones se hacen agregando un nuevo movimiento de ajuste,
@@ -194,6 +197,9 @@ correspondiente queda seleccionado igual que si se hubiera elegido manualmente.
   imprimir códigos internos para insumos sin código de fabricante queda fuera de alcance.
 - Las alertas visuales de caducidad y stock mínimo (una funcionalidad separada) se construyen
   sobre los datos de lote capturados aquí, pero su interfaz no forma parte de esta funcionalidad.
+- Mostrarle a un usuario los lotes marcados para revisión manual (FR-014) es responsabilidad de
+  esa misma funcionalidad futura de alertas; esta funcionalidad solo escribe el marcador
+  (`estado: 'revision'`) en el lote, sin construir una pantalla para verlo o actuar sobre él.
 - Todo usuario autenticado puede tanto registrar como consumir insumos; la diferenciación de
   roles/permisos por tipo de usuario no se define en esta funcionalidad.
 - El catálogo de insumos puede crecer sobre la marcha durante el registro (FR-003); no se
