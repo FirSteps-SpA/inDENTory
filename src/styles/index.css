@@ -1,0 +1,20 @@
+@import 'tailwindcss';
+
+/*
+ * Constitution III (Interfaz Táctil para Entornos Clínicos): every interactive
+ * target must be at least 48x48px so it can be used reliably with gloved hands.
+ * Apply `touch-target` (or Tailwind's `min-h-12 min-w-12`, 48px at the default
+ * 4px spacing scale) to every button, link, and selectable list item.
+ */
+@utility touch-target {
+  min-height: 48px;
+  min-width: 48px;
+}
+
+:root {
+  color-scheme: light dark;
+}
+
+body {
+  margin: 0;
+}
