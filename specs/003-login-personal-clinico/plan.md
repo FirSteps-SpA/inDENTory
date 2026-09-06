@@ -21,9 +21,8 @@ Assumptions).
 **Language/Version**: TypeScript (React 19) on Node.js ≥20 (LTS) — same as project scaffold
 (feature 001)
 
-**Primary Dependencies**: `@supabase/supabase-js` (Auth: `signInWithPassword`, `signOut`,
-`onAuthStateChange`), Dexie (local session/profile cache), Zustand (auth state store), React
-(login screen + route guard)
+**Primary Dependencies**: `@supabase/supabase-js` (Auth: `signInWithPassword`, `signOut`), Dexie
+(local session/profile cache), Zustand (auth state store), React (login screen + route guard)
 
 **Storage**: Dexie/IndexedDB holds the locally-cached authenticated identity (`usuarioActual`:
 id, email, nombre, rol) that gates offline app access (Constitution I, spec FR-002/FR-006/FR-010).

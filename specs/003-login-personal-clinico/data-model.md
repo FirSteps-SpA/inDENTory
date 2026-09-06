@@ -8,6 +8,9 @@ codebase's direct control.
 
 The locally-cached authenticated identity that gates offline app access (spec Key Entities:
 "Sesión"; research.md's offline-durable session decision).
+This is one of the two halves spec.md's "Sesión" entity maps to — the other half (the actual
+Supabase Auth token) is not modeled as an entity here; it lives in `supabase-js`'s own default
+storage and is irrelevant to gating offline access (research.md).
 
 | Field | Type | Notes |
 |---|---|---|
@@ -22,19 +25,20 @@ app boot to decide login screen vs. app shell (FR-002/FR-006); deleted only by e
 (FR-004/FR-010) — never expired by a timer or background job.
 
 **Cardinality**: at most one row at a time (single active local user per device, spec
-Assumptions) — implemented as a fixed-id singleton row (`id: 'actual'`) rather than a growing
-table, so logout is a single `delete`/`clear` rather than a query.
+Assumptions) — the table is cleared before each successful login, so there is only ever one row,
+keyed by the real Supabase Auth user id (not a fixed/synthetic key). Logout is a single `clear()`.
 
 ### Dexie schema (local)
 
 ```ts
-db.version(2).stores({
-  usuarioActual: 'id', // singleton row, primary key fixed at 'actual'
+db.version(1).stores({
+  usuarioActual: 'id', // at most one row at a time; cleared on login/logout
 })
 ```
 
-Versioned as `2` (additive) on top of feature 001's `db.version(1)` — no existing table is
-touched, so no migration of feature 002's `insumos`/`lotes`/`movimientos` data is needed.
+Feature 001 never called `.version()` (no domain tables existed yet), so this is the first real
+schema version. Whichever feature ships next (e.g., 002's `insumos`/`lotes`/`movimientos`) adds
+its tables via an additive `db.version(2).stores({...})` — no migration of this table is needed.
 
 ## Perfil (Supabase Postgres — external, see contracts/supabase-schema.md)
 

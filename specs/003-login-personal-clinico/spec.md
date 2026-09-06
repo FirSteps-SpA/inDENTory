@@ -105,12 +105,18 @@ consumir insumos sin volver a autenticarse.
 ### Edge Cases
 
 - ¿Qué sucede si el usuario intenta iniciar sesión por primera vez en un dispositivo sin conexión
-  a internet (sin sesión previa guardada localmente)?
+  a internet (sin sesión previa guardada localmente)? → Ver FR-011: se muestra un mensaje
+  explícito de "se requiere conexión", sin opción de continuar sin ella.
 - ¿Qué sucede si las credenciales de un usuario cambian (p. ej. contraseña reseteada) mientras
-  tiene una sesión offline activa en otro dispositivo?
+  tiene una sesión offline activa en otro dispositivo? → Ver Assumptions: la sesión offline en
+  ese otro dispositivo sigue siendo válida hasta su próximo cierre de sesión explícito o hasta
+  que recupere conexión (consecuencia aceptada de FR-002).
 - ¿Qué pasa si un usuario cierra sesión y luego intenta acceder a datos de inventario ya
-  cacheados localmente en el dispositivo?
-- ¿Cómo maneja el sistema múltiples intentos fallidos consecutivos de inicio de sesión?
+  cacheados localmente en el dispositivo? → Ver FR-012: los datos cacheados no son personales del
+  usuario y no se ocultan al cerrar sesión; solo se bloquea seguir operando bajo la identidad
+  anterior.
+- ¿Cómo maneja el sistema múltiples intentos fallidos consecutivos de inicio de sesión? → Ver
+  Assumptions: se delega en el límite de intentos por defecto de Supabase Auth.
 
 ## Requirements *(mandatory)*
 
@@ -118,39 +124,54 @@ consumir insumos sin volver a autenticarse.
 
 - **FR-001**: El sistema DEBE permitir a un miembro del personal clínico iniciar sesión con
   correo y contraseña, validando las credenciales contra el backend de autenticación (Supabase).
-- **FR-002**: El sistema DEBE mantener la sesión de un usuario autenticado disponible localmente
-  para que la aplicación siga siendo utilizable sin conexión a internet tras el primer inicio de
-  sesión exitoso, conforme al Principio I.
+- **FR-002**: El sistema DEBE mantener la sesión de un usuario autenticado disponible localmente,
+  de modo que la aplicación siga siendo utilizable sin conexión a internet en cualquier apertura
+  posterior al primer inicio de sesión exitoso en ese dispositivo (Principio I), permaneciendo
+  válida indefinidamente hasta que el usuario cierre sesión explícitamente, sin que el sistema
+  fuerce una reautenticación por el mero paso del tiempo mientras el dispositivo esté sin conexión.
 - **FR-003**: El sistema DEBE asociar cada movimiento de inventario (registro, consumo, ajuste)
   con la identidad del usuario autenticado que lo realizó, incluyendo cuando se realiza sin
   conexión, conforme al Principio VI.
 - **FR-004**: El sistema DEBE permitir a un usuario cerrar sesión explícitamente en cualquier
   momento, con o sin conexión a internet.
-- **FR-005**: El sistema DEBE mostrar mensajes de error claros ante credenciales incorrectas, sin
-  revelar información que permita distinguir si un correo está o no registrado.
+- **FR-005**: Ante credenciales incorrectas, el sistema DEBE mostrar un mensaje de error que no
+  revele información que permita distinguir si un correo está o no registrado.
 - **FR-006**: El sistema DEBE requerir conexión a internet únicamente para el primer inicio de
-  sesión de un usuario en un dispositivo dado; los siguientes accesos en ese mismo dispositivo
-  DEBEN funcionar con la sesión guardada localmente, aunque no haya conexión.
+  sesión de un usuario en un dispositivo dado (ver FR-002 para el comportamiento de los accesos
+  posteriores).
 - **FR-007**: Todos los controles del formulario de inicio de sesión (campos, botón) DEBEN
   cumplir el área táctil mínima de 48x48px definida en el Principio III.
-- **FR-008**: El sistema DEBE diferenciar dos roles de acceso: **administrador**, con permiso
-  para gestionar catálogo de insumos, usuarios y configuración de stock mínimo; y **personal
-  regular**, con permiso para registrar y consumir insumos pero sin acceso a gestión de usuarios
-  ni catálogo.
+- **FR-008**: El sistema DEBE capturar y exponer el rol (**administrador** o **personal
+  regular**) del usuario autenticado como parte de su identidad, de modo que funcionalidades
+  futuras de gestión de catálogo, usuarios y configuración de stock mínimo puedan restringirse a
+  administradores. Esta especificación no construye dichas pantallas restringidas — solo
+  garantiza que el rol correcto queda disponible para que las implementen.
 - **FR-009**: Las cuentas de personal clínico DEBEN ser provisionadas exclusivamente por un
   usuario con rol administrador (mediante invitación o alta directa); no existe autorregistro
   abierto desde la pantalla de inicio de sesión.
-- **FR-010**: Una sesión autenticada sin conexión DEBE permanecer válida indefinidamente hasta
-  que el usuario cierre sesión explícitamente; el sistema no debe forzar una reautenticación por
-  el mero paso del tiempo mientras el dispositivo permanece sin conexión.
+- **FR-010**: (Consolidado en FR-002 — validez offline indefinida hasta cierre de sesión
+  explícito.)
+- **FR-011**: El sistema DEBE mostrar un mensaje explícito indicando que se requiere conexión a
+  internet cuando se intenta el primer inicio de sesión en un dispositivo sin conectividad y sin
+  una sesión local previa guardada (Edge Cases).
+- **FR-012**: El sistema NO DEBE ocultar ni eliminar los datos de inventario cacheados localmente
+  (insumos, lotes, movimientos) al cerrar sesión — son datos compartidos del gabinete, no datos
+  personales del usuario; cerrar sesión solo impide continuar registrando/consumiendo insumos
+  bajo la identidad anterior sin volver a autenticarse (Edge Cases).
 
 ### Key Entities *(include if feature involves data)*
 
 - **Usuario de Personal Clínico**: Representa a un miembro del personal autenticado en el
-  sistema; incluye identificador único, correo, nombre para mostrar, y su rol/nivel de acceso.
-  Es la entidad que se asocia a todo movimiento de inventario para trazabilidad.
+  sistema; incluye identificador único, correo, nombre para mostrar, y su rol/nivel de acceso
+  (`administrador` o `personal` — este último es el valor almacenado para lo que el resto de
+  esta especificación llama "personal regular"). Es la entidad que se asocia a todo movimiento
+  de inventario para trazabilidad.
 - **Sesión**: Representa el estado de autenticación activo de un usuario en un dispositivo
-  específico; incluye el token de sesión, momento de inicio, y validez para operar sin conexión.
+  específico — el momento en que inició sesión y su validez para operar sin conexión. En la
+  implementación esto se divide en dos partes: la identidad cacheada localmente (ver
+  `UsuarioActual` en data-model.md), que gobierna el acceso offline, y el token de sesión de
+  Supabase Auth propiamente dicho, que la librería cliente gestiona internamente y que esta
+  especificación no modela como entidad propia.
 
 ## Success Criteria *(mandatory)*
 
@@ -178,6 +199,19 @@ consumir insumos sin volver a autenticarse.
   restablecimiento), fuera del detalle de esta especificación.
 - El inicio de sesión es específico de un solo gabinete/práctica dental (no se contempla
   multi-tenencia entre distintas clínicas en esta especificación).
+- Si las credenciales de un usuario cambian (contraseña reseteada, cuenta deshabilitada) mientras
+  tiene una sesión offline activa en otro dispositivo, esa sesión sigue siendo válida en ese
+  dispositivo hasta el próximo cierre de sesión explícito o hasta que recupere conexión — no
+  existe revocación forzada mientras el dispositivo permanece sin conexión. Esto es consecuencia
+  directa de FR-002 (continuidad offline indefinida) y se acepta como riesgo conocido, no como
+  una omisión.
+- El sistema se apoya en el límite de intentos y la protección contra fuerza bruta que provee
+  por defecto Supabase Auth; esta especificación no implementa un mecanismo adicional de
+  bloqueo (lockout) propio ante intentos fallidos consecutivos.
+- La verificación completa de SC-002 (100% de movimientos correctamente atribuidos) depende de
+  que la feature 002 (registro y consumo de insumos) esté implementada y consuma la identidad
+  que esta especificación expone (FR-003); esta especificación garantiza que dicha identidad
+  está disponible, no la creación de movimientos en sí.
 - Esta especificación cubre el inicio/cierre de sesión y la diferenciación de permisos por rol
   al operar el inventario; la pantalla o flujo específico que un administrador usa para invitar o
   dar de alta nuevas cuentas de personal se considera una funcionalidad relacionada pero separada,
