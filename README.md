@@ -50,6 +50,10 @@ se soporta una instancia local autoalojada vía Docker.
 4. Reinicia `npm run dev`. Si la conexión es exitosa verás `[inDENTory] Conectado a Supabase.` en
    la consola del navegador; si falta o es inválida alguna variable, verás un mensaje explícito
    indicando cuál.
+5. En el SQL Editor del proyecto Supabase, ejecuta las tablas, índices y la política RLS de
+   inventario (insumos/lotes/movimientos) definidas en
+   [`specs/002-registro-consumo-insumos/contracts/supabase-schema.md`](specs/002-registro-consumo-insumos/contracts/supabase-schema.md),
+   necesarias para la sincronización en segundo plano del registro y consumo de insumos.
 
 ### Credenciales — nunca las subas al repositorio
 

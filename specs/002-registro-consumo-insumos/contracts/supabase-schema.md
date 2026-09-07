@@ -9,12 +9,21 @@ This is the contract future changes must keep in sync: if a column is added/rena
 Dexie schema and the sync mapping code must change together.
 
 ```sql
+-- Drops in dependency order (movimientos → lotes → insumos) so the FK
+-- references below don't block the drop. Dev-project convenience only —
+-- this destroys all rows in these tables; never run against a project with
+-- real data you need to keep.
+drop table if exists movimientos;
+drop table if exists lotes;
+drop table if exists insumos;
+
 create table insumos (
   id uuid primary key,
   nombre text not null,
   categoria text not null,
   unidad_medida text not null,
   permite_decimales boolean not null,
+  caduca boolean not null default true,
   codigo_fabricante text,
   creado_en timestamptz not null default now()
 );
@@ -23,7 +32,8 @@ create table lotes (
   id uuid primary key,
   insumo_id uuid not null references insumos(id),
   numero_lote text not null,
-  fecha_caducidad date not null,
+  proveedor text not null,
+  fecha_caducidad date, -- null only when insumos.caduca = false for this lote's insumo (FR-002b)
   codigo_fabricante text,
   estado text not null default 'activo' check (estado in ('activo', 'revision')),
   creado_en timestamptz not null default now()

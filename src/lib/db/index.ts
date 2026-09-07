@@ -15,6 +15,44 @@ export interface UsuarioActual {
   autenticadoEn: string
 }
 
+/** Feature 002 data-model.md — Insumo. */
+export interface Insumo {
+  id: string
+  nombre: string
+  categoria: string
+  unidadMedida: string
+  permiteDecimales: boolean
+  /** Whether this type of supply expires at all (FR-002b) — false for e.g. reusable instruments. */
+  caduca: boolean
+  codigoFabricante: string | null
+  creadoEn: string
+}
+
+/** Feature 002 data-model.md — Lote. */
+export interface Lote {
+  id: string
+  insumoId: string
+  numeroLote: string
+  proveedor: string
+  /** `null` only when the parent Insumo has `caduca: false` (FR-002b) — never a sentinel date. */
+  fechaCaducidad: string | null
+  codigoFabricante: string | null
+  estado: 'activo' | 'revision'
+  creadoEn: string
+}
+
+/** Feature 002 data-model.md — Movimiento (append-only ledger entry). */
+export interface Movimiento {
+  id: string
+  tipo: 'ingreso' | 'consumo' | 'ajuste'
+  loteId: string
+  cantidad: number
+  usuarioId: string
+  movimientoOrigenId: string | null
+  creadoEn: string
+  sincronizado: boolean
+}
+
 /**
  * IndexedDB client (Constitution I: local-first primary write, Principle IV:
  * batch/expiry/stock queries). Future inventory features add their own
@@ -22,10 +60,21 @@ export interface UsuarioActual {
  */
 export const db = new Dexie('inDENToryDB') as Dexie & {
   usuarioActual: EntityTable<UsuarioActual, 'id'>
+  insumos: EntityTable<Insumo, 'id'>
+  lotes: EntityTable<Lote, 'id'>
+  movimientos: EntityTable<Movimiento, 'id'>
 }
 
 db.version(1).stores({
   usuarioActual: 'id',
+})
+
+// version(2): feature 002 (data-model.md) — version(1) is already claimed by
+// 003-login-personal-clinico's usuarioActual table, carried forward unchanged.
+db.version(2).stores({
+  insumos: 'id, nombre, categoria, codigoFabricante',
+  lotes: 'id, insumoId, fechaCaducidad, codigoFabricante, estado',
+  movimientos: 'id, loteId, tipo, usuarioId, creadoEn, sincronizado',
 })
 
 export type { EntityTable }

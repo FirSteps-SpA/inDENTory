@@ -38,4 +38,8 @@
 - Sesión de clarificación 2026-09-05 (3 preguntas: sobregiro de stock por sincronización
   concurrente, bitácora de movimientos inmutable, cantidades decimales por unidad de medida)
   re-validada: los 16/16 ítems se mantienen en verde.
+- Sesión de clarificación 2026-09-07 (2 preguntas, la segunda revisa la primera: insumos sin
+  caducidad real ahora se marcan con un flag `caduca: boolean`, que hace opcional la fecha de
+  caducidad de sus lotes en vez de exigir una fecha convencional escrita a mano — FR-002b)
+  re-validada: los 16/16 ítems se mantienen en verde.
 - Lista para `/speckit-plan`.
