@@ -16,6 +16,10 @@
 - Q: ¿Se puede editar o eliminar un movimiento de registro/consumo ya guardado, o las correcciones solo deben hacerse agregando un nuevo movimiento de ajuste? → A: Bitácora de solo-adición — las correcciones se hacen agregando un nuevo movimiento de ajuste; el original nunca se edita ni se borra.
 - Q: ¿Las cantidades de registro/consumo deben restringirse a números enteros, o el sistema también debe admitir cantidades decimales? → A: Cantidades decimales permitidas según la unidad de medida configurada en cada insumo (p. ej. mL, g admiten decimales; piezas, cajas no).
 
+### Session 2026-09-07
+
+- Q: ¿Cómo debe marcarse un insumo como "no caduca" para que el sistema complete la fecha automáticamente, sin que el usuario la escriba? → A: Flag `caduca: boolean` en el Insumo + `fechaCaducidad` opcional (`null`) en el Lote; el formulario oculta el campo de fecha si el insumo no caduca; FEFO ordena los lotes sin fecha al final (se consumen solo después de agotar los que sí tienen fecha).
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Registro de ingreso de un lote de insumo (Priority: P1)
@@ -110,6 +114,10 @@ correspondiente queda seleccionado igual que si se hubiera elegido manualmente.
 - ¿Qué ocurre si se registra un lote con una fecha de caducidad ya vencida? El sistema permite el
   registro (puede ser stock real ya vencido pendiente de descarte) pero lo deja identificable como
   vencido para funcionalidades futuras de alertas.
+- ¿Qué ocurre si el insumo no tiene una fecha de caducidad real (p. ej. instrumental reutilizable)?
+  El insumo se marca como que no caduca (FR-002b); el sistema no le pide fecha de caducidad al
+  registrar sus lotes, y esos lotes se descuentan (FEFO) solo después de agotar los lotes de ese
+  insumo que sí tienen fecha.
 
 ## Requirements *(mandatory)*
 
@@ -119,10 +127,15 @@ correspondiente queda seleccionado igual que si se hubiera elegido manualmente.
   búsqueda manual (texto, categoría o selección rápida) como método inmediato y por defecto, sin
   activar la cámara automáticamente.
 - **FR-002**: Al registrar un lote, el sistema DEBE capturar como mínimo: insumo, número de lote,
-  fecha de caducidad, cantidad recibida y proveedor.
+  fecha de caducidad, cantidad recibida y proveedor — excepto cuando el insumo está marcado como
+  que no caduca (FR-002b), en cuyo caso la fecha de caducidad no se solicita.
 - **FR-002a**: El sistema DEBE permitir capturar opcionalmente, tanto al crear un insumo como al
   registrar un lote, un código de barras/DataMatrix de fabricante, para que el escaneo (FR-010)
   tenga algo contra qué coincidir.
+- **FR-002b**: El sistema DEBE permitir marcar un insumo como que no caduca (p. ej. instrumental
+  reutilizable). Cuando un insumo está marcado así, el sistema NO DEBE pedirle al usuario una
+  fecha de caducidad al registrar sus lotes — el lote se guarda automáticamente sin fecha de
+  caducidad, sin que el usuario tenga que escribir ningún valor manualmente.
 - **FR-003**: Si la búsqueda manual no encuentra un insumo coincidente durante el registro, el
   sistema DEBE permitir crear una nueva entrada de catálogo sin salir del flujo de registro.
 - **FR-004**: El sistema DEBE permitir registrar el consumo de un insumo mediante el mismo
@@ -132,7 +145,9 @@ correspondiente queda seleccionado igual que si se hubiera elegido manualmente.
   al usuario autenticado que realizó la acción y a la fecha/hora en que ocurrió.
 - **FR-006**: Cuando un insumo tiene stock en más de un lote, el sistema DEBE descontar por
   defecto del lote con la fecha de caducidad más próxima (FEFO), permitiendo que el usuario elija
-  manualmente otro lote si lo necesita.
+  manualmente otro lote si lo necesita. Los lotes sin fecha de caducidad (insumo marcado como que
+  no caduca, FR-002b) se consideran los últimos en el orden FEFO — se descuentan solo después de
+  agotar todos los lotes del mismo insumo que sí tienen fecha.
 - **FR-007**: El sistema DEBE rechazar cualquier consumo que deje el stock de un lote por debajo
   de cero, mostrando un mensaje claro sin modificar el stock.
 - **FR-008**: El sistema DEBE ofrecer, tanto en el registro como en el consumo, una acción
@@ -165,9 +180,11 @@ correspondiente queda seleccionado igual que si se hubiera elegido manualmente.
 
 - **Insumo**: Un tipo de suministro dental gestionado por el inventario (p. ej. guantes, anestesia,
   gasas). Atributos clave: nombre, categoría, unidad de medida (indica si acepta cantidades
-  decimales, p. ej. mL/g, o solo enteras, p. ej. piezas/cajas).
+  decimales, p. ej. mL/g, o solo enteras, p. ej. piezas/cajas), si caduca o no (p. ej. instrumental
+  reutilizable — determina si sus lotes piden fecha de caducidad, FR-002b).
 - **Lote**: Una entrega específica de un insumo. Atributos clave: número de lote, fecha de
-  caducidad, cantidad disponible, proveedor, insumo al que pertenece.
+  caducidad (ausente si el insumo no caduca), cantidad disponible, proveedor, insumo al que
+  pertenece.
 - **Movimiento**: Un registro de ingreso, consumo o ajuste correctivo. Atributos clave: tipo
   (ingreso/consumo/ajuste), cantidad, lote afectado, usuario que lo realizó, fecha/hora. Es
   inmutable una vez guardado — las correcciones se hacen agregando un nuevo movimiento de ajuste,

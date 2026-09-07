@@ -17,6 +17,7 @@ Represents a type of dental supply managed by the inventory (spec Key Entities).
 | `categoria` | `string` | Searched by category (FR-001/004/010) |
 | `unidadMedida` | `string` | e.g. `"pieza"`, `"caja"`, `"mL"`, `"g"` |
 | `permiteDecimales` | `boolean` | Derived from `unidadMedida` at creation; drives FR-016 validation (research.md) |
+| `caduca` | `boolean` | Whether this type of supply expires at all (FR-002b, research.md's "Insumos que no caducan"). When `false` (e.g. a reusable instrument), `RegistroForm` never prompts for a fecha de caducidad and every Lote of this insumo is created with `fechaCaducidad: null` |
 | `codigoFabricante` | `string \| null` | Optional manufacturer barcode/DataMatrix payload, for scan matching (FR-010) — an insumo may have none if only lot-level codes exist |
 | `creadoEn` | `string` (ISO datetime) | |
 
@@ -34,7 +35,7 @@ Represents one received batch of an Insumo (spec Key Entities).
 | `insumoId` | `string` (UUID) | FK → Insumo |
 | `numeroLote` | `string` | Manufacturer/internal lot number (FR-002) |
 | `proveedor` | `string` | Supplier name, required per Constitution Principle IV (FR-002) |
-| `fechaCaducidad` | `string` (ISO date) | Drives FEFO ordering (FR-006) and the future alerts feature |
+| `fechaCaducidad` | `string \| null` (ISO date) | Drives FEFO ordering (FR-006) and the future alerts feature. `null` only when the parent Insumo has `caduca: false` (FR-002b) — never prompted for, never a sentinel date |
 | `codigoFabricante` | `string \| null` | Optional lot-specific barcode/DataMatrix payload (FR-010) |
 | `estado` | `"activo" \| "revision"` | `"revision"` set by the overdraft reconciliation (FR-014); never blocks further writes, just surfaces for manual follow-up |
 | `creadoEn` | `string` (ISO datetime) | |
@@ -49,6 +50,11 @@ FR-014 rules out.
 spec does not require the system to hard-block a duplicate registration (out of scope here,
 documented as a future refinement) — a duplicate simply creates a second Lote row distinguishable
 by `id` and `creadoEn`.
+
+**FEFO ordering with `fechaCaducidad: null`**: `selectFefoLot` (`src/features/insumos/lib/fefo.ts`)
+sorts lotes with available stock by `fechaCaducidad` ascending, treating `null` as sorting after
+every dated value — a lote with no fecha de caducidad is only drawn from once every dated lote of
+the same insumo is exhausted (FR-006, FR-002b).
 
 ## Movimiento
 
@@ -87,7 +93,13 @@ db.version(2).stores({
 Indexes chosen to serve: text/category search (`insumos.nombre`/`categoria`), FEFO ordering
 (`lotes.fechaCaducidad` scoped by `insumoId`), scan-match lookups
 (`insumos.codigoFabricante`/`lotes.codigoFabricante`), and the background sync's "find
-unsynced rows" query (`movimientos.sincronizado`).
+unsynced rows" query (`movimientos.sincronizado`). `insumos.caduca` isn't indexed — nothing
+queries the catalog by it, it's only read per-row when a form needs to decide whether to prompt
+for a fecha de caducidad. `lotes.fechaCaducidad` staying indexed with some rows holding `null` is
+fine: IndexedDB indexes `null` like any other value (unlike `undefined`, which is excluded from
+the index), and FEFO sorting is done in application code (`selectFefoLot`), not via an indexed
+range query, so the index is only ever used for equality/prefix lookups, never a sort that would
+need to special-case `null`.
 
 ## Relationships
 

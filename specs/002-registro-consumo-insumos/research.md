@@ -82,3 +82,24 @@
   without manual invalidation plumbing.
 - **Alternatives considered**: Separate stores per form — rejected, both forms search the same
   catalog/lot data, so one shared store avoids duplicated cache/subscription logic.
+
+## Insumos que no caducan (FR-002b, 2026-09-07 clarification)
+
+- **Decision**: `Insumo` gains a `caduca: boolean` field. `RegistroForm` hides the fecha de
+  caducidad input entirely when the selected insumo has `caduca === false`, and the `Lote` is
+  saved with `fechaCaducidad: null`. `selectFefoLot` sorts lotes with a `fechaCaducidad` ascending
+  as before, but treats any lote with `fechaCaducidad: null` as sorting after every dated lote —
+  it's consumed only once all dated lotes for that insumo are exhausted.
+- **Rationale**: Directly implements FR-002b. A boolean flag on `Insumo` (rather than a per-lote
+  checkbox) matches the real-world fact being modeled — whether an insumo caduca is a property of
+  the *type* of supply (e.g. a reusable instrument never caduca, regardless of which batch), not
+  of an individual delivery. Making `fechaCaducidad` genuinely optional (`null`), instead of
+  auto-filling a sentinel date like `9999-12-31`, keeps the field honest for any future
+  caducidad-alert feature reading it — a sentinel date would need special-casing everywhere it's
+  displayed or compared, exactly the kind of hidden footgun a real `null` avoids.
+- **Alternatives considered**: A per-lote "no caduca" checkbox instead of an insumo-level flag —
+  rejected, it would let two lotes of the same reusable-instrument insumo disagree on whether it
+  caduca, which doesn't correspond to any real distinction. Auto-filling a fixed far-future
+  sentinel date — rejected per the clarification session (see spec.md Clarifications, Session
+  2026-09-07): it keeps the schema field non-nullable but produces a fake date that has to be
+  filtered out of every future date-based query/report/alert, instead of being naturally absent.

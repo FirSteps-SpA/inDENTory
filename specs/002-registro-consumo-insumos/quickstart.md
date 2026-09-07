@@ -73,6 +73,21 @@ cambia.
 **Expected outcome**: ambos movimientos de consumo quedan guardados (ninguno se pierde ni se
 revierte); el lote queda con `estado: 'revision'` y su stock derivado puede quedar negativo.
 
+## Scenario 8 — Insumo que no caduca (FR-002b, FR-006)
+
+1. Crear (o usar) un insumo marcado como que no caduca (p. ej. un instrumental reutilizable).
+2. Abrir el formulario de registro, buscarlo, y confirmar que el campo de fecha de caducidad no
+   aparece en absoluto.
+3. Registrar un lote de ese insumo. Registrar también un segundo lote de un insumo distinto que sí
+   caduca, con stock en ambos.
+4. Registrar un lote adicional con fecha de caducidad para el mismo insumo que no caduca (un caso
+   mixto no debería darse en la práctica, pero confirma el orden si ocurre).
+5. Consumir del insumo que no caduca sin elegir lote manualmente.
+
+**Expected outcome**: el lote se guarda sin fecha de caducidad, sin haber escrito ninguna fecha. El
+consumo por FEFO descuenta primero de cualquier lote con fecha (si existiera alguno para ese
+insumo) antes que de un lote sin fecha.
+
 ## Traceability
 
 | Scenario | Spec references |
@@ -84,3 +99,4 @@ revierte); el lote queda con `estado: 'revision'` y su stock derivado puede qued
 | 5 | User Story 3, FR-008, FR-009, FR-010, FR-011, SC-005 |
 | 6 | FR-015 |
 | 7 | FR-014, Edge Cases, Clarifications Q1 |
+| 8 | FR-002b, FR-006, Clarifications Session 2026-09-07 |
