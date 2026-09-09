@@ -37,6 +37,7 @@ const insumoExistente: Insumo = {
   caduca: true,
   codigoFabricante: null,
   creadoEn: new Date().toISOString(),
+  stockMinimo: null,
 }
 
 const insumoNoCaduca: Insumo = {
@@ -48,6 +49,7 @@ const insumoNoCaduca: Insumo = {
   caduca: false,
   codigoFabricante: null,
   creadoEn: new Date().toISOString(),
+  stockMinimo: null,
 }
 
 afterEach(() => {

@@ -54,6 +54,10 @@ se soporta una instancia local autoalojada vía Docker.
    inventario (insumos/lotes/movimientos) definidas en
    [`specs/002-registro-consumo-insumos/contracts/supabase-schema.md`](specs/002-registro-consumo-insumos/contracts/supabase-schema.md),
    necesarias para la sincronización en segundo plano del registro y consumo de insumos.
+6. En el mismo SQL Editor, ejecuta la columna `stock_minimo` de `insumos`, la tabla
+   `configuracion_alertas` y su política RLS definidas en
+   [`specs/004-alertas-caducidad-stock/contracts/supabase-schema.md`](specs/004-alertas-caducidad-stock/contracts/supabase-schema.md),
+   necesarias para la sincronización de las alertas de caducidad y stock mínimo.
 
 ### Credenciales — nunca las subas al repositorio
 
