@@ -26,6 +26,8 @@ export interface Insumo {
   caduca: boolean
   codigoFabricante: string | null
   creadoEn: string
+  /** Feature 004 (FR-001) — optional; `null`/unset never generates a stock-bajo alert (FR-004). */
+  stockMinimo: number | null
 }
 
 /** Feature 002 data-model.md — Lote. */
@@ -54,6 +56,17 @@ export interface Movimiento {
 }
 
 /**
+ * Feature 004 data-model.md — ConfiguracionAlertas. Single global row (fixed
+ * id `'global'`) holding the caducidad warning day-levels (FR-005) — never
+ * per-insumo (spec Clarifications). Absence of a row means the in-code
+ * default `[30, 7, 1]` applies (data-model.md's Bootstrapping).
+ */
+export interface ConfiguracionAlertas {
+  id: 'global'
+  nivelesAvisoDias: number[]
+}
+
+/**
  * IndexedDB client (Constitution I: local-first primary write, Principle IV:
  * batch/expiry/stock queries). Future inventory features add their own
  * domain tables here via `db.version(n).stores({...})`.
@@ -63,6 +76,7 @@ export const db = new Dexie('inDENToryDB') as Dexie & {
   insumos: EntityTable<Insumo, 'id'>
   lotes: EntityTable<Lote, 'id'>
   movimientos: EntityTable<Movimiento, 'id'>
+  configuracionAlertas: EntityTable<ConfiguracionAlertas, 'id'>
 }
 
 db.version(1).stores({
@@ -75,6 +89,13 @@ db.version(2).stores({
   insumos: 'id, nombre, categoria, codigoFabricante',
   lotes: 'id, insumoId, fechaCaducidad, codigoFabricante, estado',
   movimientos: 'id, loteId, tipo, usuarioId, creadoEn, sincronizado',
+})
+
+// version(3): feature 004 (data-model.md) — insumos/lotes/movimientos carried
+// forward unchanged; `Insumo.stockMinimo` needs no new index (nothing queries
+// by it, data-model.md).
+db.version(3).stores({
+  configuracionAlertas: 'id',
 })
 
 export type { EntityTable }

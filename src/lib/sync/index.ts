@@ -1,6 +1,12 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { getSupabaseStatus } from '../supabase'
-import { db, type Insumo, type Lote, type Movimiento } from '../db'
+import {
+  db,
+  type ConfiguracionAlertas,
+  type Insumo,
+  type Lote,
+  type Movimiento,
+} from '../db'
 import { reconcileOverdraft } from './reconcileOverdraft'
 
 interface InsumoRow {
@@ -12,6 +18,12 @@ interface InsumoRow {
   caduca: boolean
   codigo_fabricante: string | null
   creado_en: string
+  stock_minimo: number | null
+}
+
+interface ConfiguracionAlertasRow {
+  id: 'global'
+  niveles_aviso_dias: number[]
 }
 
 interface LoteRow {
@@ -45,6 +57,7 @@ function toInsumoRow(insumo: Insumo): InsumoRow {
     caduca: insumo.caduca,
     codigo_fabricante: insumo.codigoFabricante,
     creado_en: insumo.creadoEn,
+    stock_minimo: insumo.stockMinimo,
   }
 }
 
@@ -58,6 +71,25 @@ function fromInsumoRow(row: InsumoRow): Insumo {
     caduca: row.caduca,
     codigoFabricante: row.codigo_fabricante,
     creadoEn: row.creado_en,
+    stockMinimo: row.stock_minimo,
+  }
+}
+
+function toConfiguracionAlertasRow(
+  config: ConfiguracionAlertas,
+): ConfiguracionAlertasRow {
+  return {
+    id: config.id,
+    niveles_aviso_dias: config.nivelesAvisoDias,
+  }
+}
+
+function fromConfiguracionAlertasRow(
+  row: ConfiguracionAlertasRow,
+): ConfiguracionAlertas {
+  return {
+    id: row.id,
+    nivelesAvisoDias: row.niveles_aviso_dias,
   }
 }
 
@@ -143,6 +175,15 @@ async function pushMovimientos(client: SupabaseClient): Promise<string[]> {
     .map((movimiento) => movimiento.loteId)
 }
 
+/** Pushes the local global config row, if one has ever been saved (feature 004, FR-005). */
+async function pushConfiguracionAlertas(client: SupabaseClient): Promise<void> {
+  const config = await db.configuracionAlertas.get('global')
+  if (!config) return
+  await client
+    .from('configuracion_alertas')
+    .upsert(toConfiguracionAlertasRow(config))
+}
+
 async function pullInsumos(client: SupabaseClient): Promise<void> {
   const { data, error } = await client.from('insumos').select('*')
   if (error || !data) return
@@ -153,6 +194,19 @@ async function pullLotes(client: SupabaseClient): Promise<void> {
   const { data, error } = await client.from('lotes').select('*')
   if (error || !data) return
   await db.lotes.bulkPut((data as LoteRow[]).map(fromLoteRow))
+}
+
+/** Pulls the remote global config row, if one has ever been saved (feature 004, FR-005). */
+async function pullConfiguracionAlertas(client: SupabaseClient): Promise<void> {
+  const { data, error } = await client
+    .from('configuracion_alertas')
+    .select('*')
+    .eq('id', 'global')
+    .maybeSingle()
+  if (error || !data) return
+  await db.configuracionAlertas.put(
+    fromConfiguracionAlertasRow(data as ConfiguracionAlertasRow),
+  )
 }
 
 /** Pulls remote movimientos and returns the loteIds of any `consumo` rows pulled. */
@@ -179,12 +233,14 @@ export async function runSyncBatch(): Promise<void> {
 
   await pushInsumos(client)
   await pushLotes(client)
+  await pushConfiguracionAlertas(client)
   for (const loteId of await pushMovimientos(client)) {
     loteIdsTocados.add(loteId)
   }
 
   await pullInsumos(client)
   await pullLotes(client)
+  await pullConfiguracionAlertas(client)
   for (const loteId of await pullMovimientos(client)) {
     loteIdsTocados.add(loteId)
   }

@@ -1,16 +1,19 @@
 import { create } from 'zustand'
 import { liveQuery } from 'dexie'
-import { db, type Insumo, type Lote } from '../lib/db'
+import { db, type Insumo, type Lote, type Movimiento } from '../lib/db'
 
 /**
  * Reactive in-memory cache of the insumo/lote catalog (Constitution II),
  * kept in sync with Dexie via `liveQuery` — no manual invalidation needed
  * when RegistroForm/ConsumoForm write new rows. Shared by both forms'
- * search and FEFO/scan lookups (research.md).
+ * search and FEFO/scan lookups (research.md), and by feature 004's alert
+ * calculators, which is why `movimientos` is also subscribed here rather
+ * than in a second store (research.md's "extend, don't duplicate" decision).
  */
 interface InventoryState {
   insumos: Insumo[]
   lotes: Lote[]
+  movimientos: Movimiento[]
   isReady: boolean
   subscribe: () => () => void
 }
@@ -18,6 +21,7 @@ interface InventoryState {
 export const useInventoryStore = create<InventoryState>((set) => ({
   insumos: [],
   lotes: [],
+  movimientos: [],
   isReady: false,
   subscribe: () => {
     const insumosSub = liveQuery(() => db.insumos.toArray()).subscribe({
@@ -26,9 +30,15 @@ export const useInventoryStore = create<InventoryState>((set) => ({
     const lotesSub = liveQuery(() => db.lotes.toArray()).subscribe({
       next: (lotes) => set({ lotes, isReady: true }),
     })
+    const movimientosSub = liveQuery(() => db.movimientos.toArray()).subscribe(
+      {
+        next: (movimientos) => set({ movimientos, isReady: true }),
+      },
+    )
     return () => {
       insumosSub.unsubscribe()
       lotesSub.unsubscribe()
+      movimientosSub.unsubscribe()
     }
   },
 }))

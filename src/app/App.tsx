@@ -3,18 +3,21 @@ import { useBackendConnection } from '../lib/supabase/useBackendConnection'
 import { startBackgroundSync } from '../lib/sync'
 import { useAuthStore } from '../stores/authStore'
 import { useInventoryStore } from '../stores/inventoryStore'
+import { useAlertasStore } from '../stores/alertasStore'
 import { LoginForm } from '../features/auth/LoginForm'
 import { useLogout } from '../features/auth/useLogout'
 import { RegistroForm } from '../features/insumos/components/RegistroForm'
 import { ConsumoForm } from '../features/insumos/components/ConsumoForm'
+import { AlertasView } from '../features/alertas/components/AlertasView'
 
-type Vista = 'registro' | 'consumo'
+type Vista = 'registro' | 'consumo' | 'alertas'
 
 function App() {
   useBackendConnection()
   const { signOut } = useLogout()
   const [vista, setVista] = useState<Vista>('registro')
   const subscribeInventory = useInventoryStore((s) => s.subscribe)
+  const subscribeAlertas = useAlertasStore((s) => s.subscribe)
 
   // Boot guard: reads only the local Dexie cache (authStore.hydrate), never
   // a live Supabase call, so login-vs-app-shell is never gated on network
@@ -32,13 +35,15 @@ function App() {
   // Dexie-first hydration, never gated on network (Constitution I).
   useEffect(() => {
     if (!usuario) return
-    const unsubscribe = subscribeInventory()
+    const unsubscribeInventory = subscribeInventory()
+    const unsubscribeAlertas = subscribeAlertas()
     const stopSync = startBackgroundSync()
     return () => {
-      unsubscribe()
+      unsubscribeInventory()
+      unsubscribeAlertas()
       stopSync()
     }
-  }, [usuario, subscribeInventory])
+  }, [usuario, subscribeInventory, subscribeAlertas])
 
   return (
     <main className="flex min-h-dvh flex-col items-center gap-4 p-6 text-center">
@@ -79,9 +84,19 @@ function App() {
             >
               Consumir
             </button>
+            <button
+              type="button"
+              onClick={() => setVista('alertas')}
+              aria-pressed={vista === 'alertas'}
+              className="touch-target flex-1 rounded border border-gray-300 px-4 aria-pressed:bg-slate-900 aria-pressed:text-white"
+            >
+              Alertas
+            </button>
           </div>
 
-          {vista === 'registro' ? <RegistroForm /> : <ConsumoForm />}
+          {vista === 'registro' && <RegistroForm />}
+          {vista === 'consumo' && <ConsumoForm />}
+          {vista === 'alertas' && <AlertasView />}
         </div>
       )}
     </main>

@@ -37,6 +37,7 @@ const insumo: Insumo = {
   caduca: true,
   codigoFabricante: null,
   creadoEn: new Date().toISOString(),
+  stockMinimo: null,
 }
 
 const loteProximo: Lote = {
