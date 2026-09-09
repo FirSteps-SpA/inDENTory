@@ -44,10 +44,10 @@ independent implementation and testing of each story.
 - [X] T002 In `src/lib/db/index.ts`: add `stockMinimo: number | null` to the `Insumo` interface,
       add a new `ConfiguracionAlertas` interface (`{ id: 'global', nivelesAvisoDias: number[] }`),
       and add `db.version(3).stores({ configuracionAlertas: 'id' })` (data-model.md)
-- [ ] T003 Apply this feature's Supabase schema additions from
+- [X] T003 Apply this feature's Supabase schema additions from
       `specs/004-alertas-caducidad-stock/contracts/supabase-schema.md` (`alter table insumos add
       column stock_minimo numeric;`, the new `configuracion_alertas` table, and its RLS policies)
-      to the Supabase dev project's SQL Editor — done by user
+      to the Supabase dev project's SQL Editor — done by user; verified live
 - [X] T004 [P] Extend `src/stores/inventoryStore.ts` with a `movimientos: Movimiento[]` field and
       a `liveQuery(() => db.movimientos.toArray())` subscription alongside the existing
       `insumos`/`lotes` ones (research.md's "extend, don't duplicate" decision) — needed to derive
@@ -173,9 +173,9 @@ marked resuelto (spec Independent Test, User Story 3).
 - [X] T019 [P] Update the README's "Configurar backend de desarrollo" section to reference
       `specs/004-alertas-caducidad-stock/contracts/supabase-schema.md`'s additional SQL, mirroring
       the existing references to features 002/003's schema files
-- [ ] T020 Run `quickstart.md` Scenarios 1-6 end-to-end against a Supabase dev project with an
+- [X] T020 Run `quickstart.md` Scenarios 1-6 end-to-end against a Supabase dev project with an
       `administrador` and a `personal` test account, and fix any gaps found (depends on all prior
-      tasks)
+      tasks) — run manually by user against real accounts; all 6 scenarios pass
 - [X] T021 [P] Add an integration test in `tests/integration/alertas-reactividad.test.tsx`:
       writing a new movimiento, or updating `stockMinimo`/`nivelesAvisoDias` directly via Dexie,
       causes `AlertasView` to reflect the updated alert list without remounting (FR-011) (depends
