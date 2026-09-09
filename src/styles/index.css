@@ -1,5 +1,50 @@
 @import 'tailwindcss';
 
+/* Self-hosted Manrope (research.md: offline-first — never a live Google Fonts
+ * link, so typography stays available with the device fully offline). Only
+ * the weights the design actually uses, latin subset only (the app is
+ * Spanish-only — no Cyrillic/Greek/Vietnamese glyphs needed) to keep the
+ * precached font payload small. */
+@import '@fontsource/manrope/latin-400.css';
+@import '@fontsource/manrope/latin-500.css';
+@import '@fontsource/manrope/latin-700.css';
+@import '@fontsource/manrope/latin-800.css';
+
+/* Feature 005 design tokens (contracts/design-system.md) — Tailwind v4
+ * generates bg-, text-, and border- utilities directly from these. */
+@theme {
+  /* Neutral */
+  --color-bg: #F5F8FA;
+  --color-surface: #FFFFFF;
+  --color-border: #E2E8F0;
+  --color-text: #0F172A;
+  --color-text-muted: #64748B;
+  --color-text-faint: #94A3B8;
+
+  /* Primary (brand) */
+  --color-primary: #0E5C73;
+  --color-primary-dark: #0A4757;
+  --color-primary-soft: #E6F4F3;
+
+  /* Alert semantics (spec 004's states). Every *-text token is verified
+   * >=4.5:1 WCAG AA against its paired *-bg — research.md's "Verifying
+   * alert color contrast" decision. */
+  --color-success-dot: #22A559;
+  --color-success-text: #15803D;
+  --color-success-bg: #E7F6EC;
+  --color-warning-30-text: #92400E;
+  --color-warning-30-bg: #FFF4E0;
+  --color-urgent-7-text: #9A3412;
+  --color-urgent-7-bg: #FFE8D2;
+  --color-urgent-1-text: #991B1B;
+  --color-urgent-1-bg: #FEE2E2;
+  --color-danger: #C4291D;
+  --color-danger-dot: #E5484D;
+  --color-danger-bg: #FDEAEA;
+
+  --font-sans: "Manrope", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
 /*
  * Constitution III (Interfaz Táctil para Entornos Clínicos): every interactive
  * target must be at least 48x48px so it can be used reliably with gloved hands.

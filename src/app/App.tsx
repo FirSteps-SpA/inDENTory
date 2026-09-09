@@ -9,8 +9,8 @@ import { useLogout } from '../features/auth/useLogout'
 import { RegistroForm } from '../features/insumos/components/RegistroForm'
 import { ConsumoForm } from '../features/insumos/components/ConsumoForm'
 import { AlertasView } from '../features/alertas/components/AlertasView'
-
-type Vista = 'registro' | 'consumo' | 'alertas'
+import { AppHeader } from './AppHeader'
+import { BottomNav, type Vista } from './BottomNav'
 
 function App() {
   useBackendConnection()
@@ -46,53 +46,19 @@ function App() {
   }, [usuario, subscribeInventory, subscribeAlertas])
 
   return (
-    <main className="flex min-h-dvh flex-col items-center gap-4 p-6 text-center">
-      <h1 className="text-2xl font-semibold">inDENTory</h1>
+    <main className="flex min-h-dvh flex-col items-center gap-4 bg-bg p-6 text-center">
       {!isReady ? (
-        <p className="text-sm text-gray-600">Cargando…</p>
+        <>
+          <h1 className="text-2xl font-extrabold text-text">inDENTory</h1>
+          <p className="text-sm text-text-muted">Cargando…</p>
+        </>
       ) : !usuario ? (
         <LoginForm />
       ) : (
         <div className="flex w-full max-w-md flex-col items-stretch gap-4 text-left">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-600">
-              Sesión iniciada como {usuario.nombre}
-            </p>
-            <button
-              type="button"
-              onClick={() => void signOut()}
-              className="touch-target rounded border border-gray-300 px-4"
-            >
-              Cerrar sesión
-            </button>
-          </div>
+          <AppHeader onSignOut={() => void signOut()} />
 
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setVista('registro')}
-              aria-pressed={vista === 'registro'}
-              className="touch-target flex-1 rounded border border-gray-300 px-4 aria-pressed:bg-slate-900 aria-pressed:text-white"
-            >
-              Registrar
-            </button>
-            <button
-              type="button"
-              onClick={() => setVista('consumo')}
-              aria-pressed={vista === 'consumo'}
-              className="touch-target flex-1 rounded border border-gray-300 px-4 aria-pressed:bg-slate-900 aria-pressed:text-white"
-            >
-              Consumir
-            </button>
-            <button
-              type="button"
-              onClick={() => setVista('alertas')}
-              aria-pressed={vista === 'alertas'}
-              className="touch-target flex-1 rounded border border-gray-300 px-4 aria-pressed:bg-slate-900 aria-pressed:text-white"
-            >
-              Alertas
-            </button>
-          </div>
+          <BottomNav active={vista} onChange={setVista} />
 
           {vista === 'registro' && <RegistroForm />}
           {vista === 'consumo' && <ConsumoForm />}

@@ -1,5 +1,6 @@
 import type { Insumo, Lote, Movimiento } from '../../../lib/db'
 import { computeStockLote } from '../../insumos/lib/stock'
+import { diasEntre } from '../../../lib/dateMath'
 
 /** data-model.md's AlertaCaducidad view-model — never persisted, always recomputed. */
 export interface AlertaCaducidad {
@@ -7,21 +8,6 @@ export interface AlertaCaducidad {
   insumo: Insumo
   diasRestantes: number
   nivel: number | 'caducado'
-}
-
-/**
- * `fechaCaducidad` is a date-only ISO string, which `new Date(...)` parses
- * as UTC midnight. Comparing it against `hoy` must stay in that same UTC
- * frame — using `Date#setHours` (local time) here would shift the result by
- * a day in any timezone other than UTC (e.g. America/Santiago, UTC-3).
- */
-function diasEntre(fechaCaducidad: string, hoy: Date): number {
-  const fin = new Date(fechaCaducidad)
-  const inicio = new Date(
-    Date.UTC(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()),
-  )
-  const msPorDia = 24 * 60 * 60 * 1000
-  return Math.round((fin.getTime() - inicio.getTime()) / msPorDia)
 }
 
 /**

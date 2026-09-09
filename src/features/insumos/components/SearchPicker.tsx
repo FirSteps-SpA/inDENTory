@@ -8,6 +8,10 @@ import {
   useInventoryStore,
 } from '../../../stores/inventoryStore'
 import { permiteDecimales } from '../lib/quantity'
+import { Search } from '../../../components/icons'
+import { Card } from '../../../components/ui/Card'
+import { IconField } from '../../../components/ui/IconField'
+import { TouchButton } from '../../../components/ui/TouchButton'
 
 const UNIDADES_MEDIDA = ['pieza', 'caja', 'mL', 'g'] as const
 
@@ -38,10 +42,14 @@ export function SearchPicker({ onSelect }: SearchPickerProps) {
   const sinCoincidencias = texto.trim() !== '' && resultados.length === 0
 
   return (
-    <div className="flex flex-col gap-3">
-      <label className="flex flex-col gap-1 text-sm">
-        Buscar insumo
+    <div className="flex flex-col gap-4">
+      <IconField
+        label="Buscar insumo"
+        icon={<Search size={18} />}
+        htmlFor="buscar-insumo"
+      >
         <input
+          id="buscar-insumo"
           type="text"
           value={texto}
           onChange={(event) => {
@@ -49,62 +57,73 @@ export function SearchPicker({ onSelect }: SearchPickerProps) {
             setMostrarCrearInsumo(false)
           }}
           placeholder="Nombre del insumo"
-          className="touch-target rounded border border-gray-300 px-3"
+          className="h-full w-full border-none bg-transparent text-[15px] text-text outline-none"
         />
-      </label>
+      </IconField>
 
       {categorias.length > 0 && (
-        <label className="flex flex-col gap-1 text-sm">
-          Categoría
-          <select
-            value={categoria}
-            onChange={(event) => setCategoria(event.target.value)}
-            className="touch-target rounded border border-gray-300 px-3"
+        <div className="flex gap-2 overflow-x-auto">
+          <button
+            type="button"
+            onClick={() => setCategoria('')}
+            aria-pressed={categoria === ''}
+            className={`touch-target shrink-0 rounded-full px-4 text-sm font-bold ${
+              categoria === '' ? 'bg-primary text-white' : 'border border-border text-text-muted'
+            }`}
           >
-            <option value="">Todas</option>
-            {categorias.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </label>
+            Todas
+          </button>
+          {categorias.map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => setCategoria(c)}
+              aria-pressed={categoria === c}
+              className={`touch-target shrink-0 rounded-full px-4 text-sm font-bold ${
+                categoria === c ? 'bg-primary text-white' : 'border border-border text-text-muted'
+              }`}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
       )}
 
       {!categoria && !texto.trim() && resultados.length > 0 && (
-        <p className="text-xs text-gray-500">Selección rápida</p>
+        <p className="text-xs font-bold uppercase tracking-wide text-text-faint">
+          Selección rápida
+        </p>
       )}
 
       <ul className="flex flex-col gap-2">
         {resultados.map((insumo) => (
           <li key={insumo.id}>
-            <button
+            <Card
+              as="button"
               type="button"
               onClick={() => onSelect(insumo)}
-              className="touch-target w-full rounded border border-gray-300 px-3 text-left"
+              className="touch-target flex w-full items-center gap-3 px-3.5 text-left"
             >
-              {insumo.nombre}{' '}
-              <span className="text-xs text-gray-500">
-                ({insumo.categoria})
-              </span>
-            </button>
+              <span className="text-sm font-bold text-text">{insumo.nombre}</span>
+              <span className="text-xs text-text-muted">({insumo.categoria})</span>
+            </Card>
           </li>
         ))}
       </ul>
 
       {sinCoincidencias && !mostrarCrearInsumo && (
-        <div className="flex flex-col gap-2">
-          <p className="text-sm text-gray-600">
+        <Card className="flex flex-col gap-2 p-3.5">
+          <p className="text-sm text-text-muted">
             No se encontraron insumos para &quot;{texto}&quot;.
           </p>
-          <button
+          <TouchButton
             type="button"
+            variant="secondary"
             onClick={() => setMostrarCrearInsumo(true)}
-            className="touch-target rounded border border-gray-300 px-4"
           >
             Crear insumo nuevo
-          </button>
-        </div>
+          </TouchButton>
+        </Card>
       )}
 
       {mostrarCrearInsumo && (
@@ -158,31 +177,32 @@ function CrearInsumoForm({
   }
 
   return (
-    <form
-      onSubmit={(event) => void handleSubmit(event)}
-      className="flex flex-col gap-3 rounded border border-gray-300 p-3"
+    <Card
+      as="form"
+      onSubmit={(event: FormEvent<HTMLFormElement>) => void handleSubmit(event)}
+      className="flex flex-col gap-3 p-3.5"
     >
-      <label className="flex flex-col gap-1 text-sm">
-        Nombre
+      <IconField label="Nombre" htmlFor="nuevo-insumo-nombre">
         <input
+          id="nuevo-insumo-nombre"
           type="text"
           required
           value={nombre}
           onChange={(event) => setNombre(event.target.value)}
-          className="touch-target rounded border border-gray-300 px-3"
+          className="h-full w-full border-none bg-transparent text-[15px] text-text outline-none"
         />
-      </label>
-      <label className="flex flex-col gap-1 text-sm">
-        Categoría
+      </IconField>
+      <IconField label="Categoría" htmlFor="nuevo-insumo-categoria">
         <input
+          id="nuevo-insumo-categoria"
           type="text"
           required
           value={categoria}
           onChange={(event) => setCategoria(event.target.value)}
-          className="touch-target rounded border border-gray-300 px-3"
+          className="h-full w-full border-none bg-transparent text-[15px] text-text outline-none"
         />
-      </label>
-      <label className="flex flex-col gap-1 text-sm">
+      </IconField>
+      <label className="flex flex-col gap-1.5 text-sm font-bold text-text">
         Unidad de medida
         <select
           value={unidadMedida}
@@ -191,7 +211,7 @@ function CrearInsumoForm({
               event.target.value as (typeof UNIDADES_MEDIDA)[number],
             )
           }
-          className="touch-target rounded border border-gray-300 px-3"
+          className="touch-target rounded-xl border border-border bg-surface px-3.5 text-[15px] font-normal text-text"
         >
           {UNIDADES_MEDIDA.map((u) => (
             <option key={u} value={u}>
@@ -200,7 +220,7 @@ function CrearInsumoForm({
           ))}
         </select>
       </label>
-      <label className="touch-target flex items-center gap-2 text-sm">
+      <label className="touch-target flex items-center gap-2 text-sm text-text">
         <input
           type="checkbox"
           checked={noCaduca}
@@ -208,30 +228,26 @@ function CrearInsumoForm({
         />
         Este insumo no caduca (p. ej. instrumental reutilizable)
       </label>
-      <label className="flex flex-col gap-1 text-sm">
-        Código de fabricante (opcional)
+      <IconField
+        label="Código de fabricante (opcional)"
+        htmlFor="nuevo-insumo-codigo"
+      >
         <input
+          id="nuevo-insumo-codigo"
           type="text"
           value={codigoFabricante}
           onChange={(event) => setCodigoFabricante(event.target.value)}
-          className="touch-target rounded border border-gray-300 px-3"
+          className="h-full w-full border-none bg-transparent text-[15px] text-text outline-none"
         />
-      </label>
+      </IconField>
       <div className="flex gap-2">
-        <button
-          type="submit"
-          className="touch-target flex-1 rounded bg-slate-900 px-4 text-white"
-        >
+        <TouchButton type="submit" className="flex-1">
           Guardar insumo
-        </button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="touch-target flex-1 rounded border border-gray-300 px-4"
-        >
+        </TouchButton>
+        <TouchButton type="button" variant="ghost" onClick={onCancel} className="flex-1">
           Cancelar
-        </button>
+        </TouchButton>
       </div>
-    </form>
+    </Card>
   )
 }

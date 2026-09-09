@@ -6,6 +6,18 @@ import { computeInsumosStockBajo } from '../lib/stockBajo'
 import { computeAlertasCaducidad } from '../lib/caducidad'
 import { lotesEnRevision, marcarLoteResuelto } from '../lib/revision'
 import { actualizarStockMinimo, actualizarNivelesAviso } from '../lib/configuracion'
+import { AlertTriangle } from '../../../components/icons'
+import { Badge, type BadgeVariant } from '../../../components/ui/Badge'
+import { Card } from '../../../components/ui/Card'
+import { IconField } from '../../../components/ui/IconField'
+import { TouchButton } from '../../../components/ui/TouchButton'
+
+function badgeVariantParaNivel(nivel: number | 'caducado'): BadgeVariant {
+  if (nivel === 'caducado') return 'danger'
+  if (nivel === 30) return 'warning-30'
+  if (nivel === 7) return 'urgent-7'
+  return 'urgent-1'
+}
 
 /**
  * Dedicated alerts screen (FR-013): consolidates stock-bajo, caducidad, and
@@ -72,21 +84,25 @@ export function AlertasView() {
   return (
     <div className="flex w-full flex-col gap-6 text-left">
       <section className="flex flex-col gap-2">
-        <h2 className="text-lg font-semibold">Stock bajo</h2>
+        <h2 className="text-base font-extrabold text-text">Stock bajo</h2>
         {alertasStockBajo.length === 0 ? (
-          <p className="text-sm text-gray-600">
-            Ningún insumo está por debajo de su stock mínimo.
-          </p>
+          <Card className="px-3.5 py-2.5">
+            <p className="text-sm text-text-muted">
+              Ningún insumo está por debajo de su stock mínimo.
+            </p>
+          </Card>
         ) : (
           <ul className="flex flex-col gap-2">
             {alertasStockBajo.map(({ insumo, stockActual }) => (
-              <li
-                key={insumo.id}
-                className="rounded border border-amber-400 bg-amber-50 px-3 py-2 text-sm"
-              >
-                <span className="font-medium">{insumo.nombre}</span> —{' '}
-                {stockActual} {insumo.unidadMedida} disponibles (mínimo{' '}
-                {insumo.stockMinimo} {insumo.unidadMedida})
+              <li key={insumo.id}>
+                <Card className="flex items-center justify-between gap-2 bg-danger-bg px-3.5 py-2.5">
+                  <span className="text-sm text-text">
+                    <span className="font-bold">{insumo.nombre}</span> —{' '}
+                    {stockActual} {insumo.unidadMedida} disponibles (mínimo{' '}
+                    {insumo.stockMinimo} {insumo.unidadMedida})
+                  </span>
+                  <Badge variant="danger">Bajo mínimo</Badge>
+                </Card>
               </li>
             ))}
           </ul>
@@ -94,28 +110,30 @@ export function AlertasView() {
       </section>
 
       <section className="flex flex-col gap-2">
-        <h2 className="text-lg font-semibold">Próximos a caducar</h2>
+        <h2 className="text-base font-extrabold text-text">Próximos a caducar</h2>
         {alertasCaducidad.length === 0 ? (
-          <p className="text-sm text-gray-600">
-            Ningún lote está próximo a caducar ni caducado.
-          </p>
+          <Card className="px-3.5 py-2.5">
+            <p className="text-sm text-text-muted">
+              Ningún lote está próximo a caducar ni caducado.
+            </p>
+          </Card>
         ) : (
           <ul className="flex flex-col gap-2">
             {alertasCaducidad.map(({ lote, insumo, diasRestantes, nivel }) => (
-              <li
-                key={lote.id}
-                className={
-                  nivel === 'caducado'
-                    ? 'rounded border border-red-500 bg-red-50 px-3 py-2 text-sm'
-                    : 'rounded border border-amber-400 bg-amber-50 px-3 py-2 text-sm'
-                }
-              >
-                <span className="font-medium">{insumo.nombre}</span> — lote{' '}
-                {lote.numeroLote}, vence {lote.fechaCaducidad} (
-                {nivel === 'caducado'
-                  ? `caducado hace ${Math.abs(diasRestantes)} día(s)`
-                  : `nivel ${nivel} días`}
-                )
+              <li key={lote.id}>
+                <Card className="flex items-center justify-between gap-2 bg-danger-bg px-3.5 py-2.5">
+                  <span className="text-sm text-text">
+                    <span className="font-bold">{insumo.nombre}</span> — lote{' '}
+                    {lote.numeroLote}, vence {lote.fechaCaducidad} (
+                    {nivel === 'caducado'
+                      ? `caducado hace ${Math.abs(diasRestantes)} día(s)`
+                      : `nivel ${nivel} días`}
+                    )
+                  </span>
+                  <Badge variant={badgeVariantParaNivel(nivel)}>
+                    {nivel === 'caducado' ? 'Caducado' : `${nivel} días`}
+                  </Badge>
+                </Card>
               </li>
             ))}
           </ul>
@@ -123,36 +141,43 @@ export function AlertasView() {
       </section>
 
       <section className="flex flex-col gap-2">
-        <h2 className="text-lg font-semibold">Lotes en revisión</h2>
+        <h2 className="text-base font-extrabold text-text">Lotes en revisión</h2>
         {errorRevision && (
-          <p role="alert" className="text-sm text-red-600">
-            {errorRevision}
-          </p>
+          <Card className="bg-danger-bg px-3.5 py-2.5">
+            <p role="alert" className="text-sm text-danger">
+              {errorRevision}
+            </p>
+          </Card>
         )}
         {alertasRevision.length === 0 ? (
-          <p className="text-sm text-gray-600">
-            Ningún lote está marcado para revisión manual.
-          </p>
+          <Card className="px-3.5 py-2.5">
+            <p className="text-sm text-text-muted">
+              Ningún lote está marcado para revisión manual.
+            </p>
+          </Card>
         ) : (
           <ul className="flex flex-col gap-2">
             {alertasRevision.map(({ lote, insumo, stockDerivado }) => (
-              <li
-                key={lote.id}
-                className="flex items-center justify-between gap-2 rounded border border-red-500 bg-red-50 px-3 py-2 text-sm"
-              >
-                <span>
-                  <span className="font-medium">{insumo.nombre}</span> — lote{' '}
-                  {lote.numeroLote}: stock {stockDerivado} {insumo.unidadMedida}
-                </span>
-                {esAdministrador && (
-                  <button
-                    type="button"
-                    onClick={() => void handleMarcarResuelto(lote.id)}
-                    className="touch-target rounded border border-gray-300 px-3"
-                  >
-                    Marcar como resuelto
-                  </button>
-                )}
+              <li key={lote.id}>
+                <Card className="flex items-center justify-between gap-2 bg-danger-bg px-3.5 py-2.5">
+                  <span className="flex items-start gap-2 text-sm text-text">
+                    <AlertTriangle size={16} className="mt-0.5 shrink-0 text-danger" />
+                    <span>
+                      <span className="font-bold">{insumo.nombre}</span> — lote{' '}
+                      {lote.numeroLote}: stock {stockDerivado} {insumo.unidadMedida}
+                    </span>
+                  </span>
+                  {esAdministrador && (
+                    <TouchButton
+                      type="button"
+                      variant="ghost"
+                      onClick={() => void handleMarcarResuelto(lote.id)}
+                      className="text-sm"
+                    >
+                      Marcar como resuelto
+                    </TouchButton>
+                  )}
+                </Card>
               </li>
             ))}
           </ul>
@@ -162,19 +187,21 @@ export function AlertasView() {
       {esAdministrador && (
         <>
           <section className="flex flex-col gap-2">
-            <h2 className="text-lg font-semibold">
+            <h2 className="text-base font-extrabold text-text">
               Configurar stock mínimo por insumo
             </h2>
             {errorConfig && (
-              <p role="alert" className="text-sm text-red-600">
-                {errorConfig}
-              </p>
+              <Card className="bg-danger-bg px-3.5 py-2.5">
+                <p role="alert" className="text-sm text-danger">
+                  {errorConfig}
+                </p>
+              </Card>
             )}
-            <ul className="flex flex-col gap-2">
+            <Card className="flex flex-col divide-y divide-border px-3.5">
               {insumos.map((insumo) => (
-                <li
+                <div
                   key={insumo.id}
-                  className="flex items-center justify-between gap-2 text-sm"
+                  className="flex items-center justify-between gap-2 py-2.5 text-sm text-text"
                 >
                   <span>{insumo.nombre}</span>
                   <input
@@ -187,34 +214,39 @@ export function AlertasView() {
                       void handleStockMinimoChange(insumo.id, event.target.value)
                     }
                     aria-label={`Stock mínimo de ${insumo.nombre}`}
-                    className="touch-target w-32 rounded border border-gray-300 px-3"
+                    className="touch-target w-28 rounded-lg border border-border bg-surface px-3 text-right"
                   />
-                </li>
+                </div>
               ))}
-            </ul>
+            </Card>
           </section>
 
           <section className="flex flex-col gap-2">
-            <h2 className="text-lg font-semibold">
+            <h2 className="text-base font-extrabold text-text">
               Configurar niveles de aviso de caducidad
             </h2>
             {errorNiveles && (
-              <p role="alert" className="text-sm text-red-600">
-                {errorNiveles}
-              </p>
+              <Card className="bg-danger-bg px-3.5 py-2.5">
+                <p role="alert" className="text-sm text-danger">
+                  {errorNiveles}
+                </p>
+              </Card>
             )}
-            <label className="flex flex-col gap-1 text-sm">
-              Días antes de caducar (separados por coma)
+            <IconField
+              label="Días antes de caducar (separados por coma)"
+              htmlFor="niveles-aviso"
+            >
               <input
+                id="niveles-aviso"
                 type="text"
                 defaultValue={nivelesAvisoDias.join(', ')}
                 onBlur={(event) =>
                   void handleNivelesAvisoChange(event.target.value)
                 }
                 aria-label="Niveles de aviso de caducidad, en días"
-                className="touch-target rounded border border-gray-300 px-3"
+                className="h-full w-full border-none bg-transparent text-[15px] text-text outline-none"
               />
-            </label>
+            </IconField>
           </section>
         </>
       )}

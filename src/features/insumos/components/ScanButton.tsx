@@ -6,6 +6,9 @@ import {
   findLotePorCodigo,
   useInventoryStore,
 } from '../../../stores/inventoryStore'
+import { Scan } from '../../../components/icons'
+import { Card } from '../../../components/ui/Card'
+import { TouchButton } from '../../../components/ui/TouchButton'
 
 interface ScanButtonProps {
   /** Selecciona igual que la búsqueda manual — `lote` solo si el código escaneado era de lote. */
@@ -73,32 +76,36 @@ export function ScanButton({ onSelect }: ScanButtonProps) {
 
   return (
     <div className="flex flex-col gap-2">
-      <button
+      <TouchButton
         type="button"
+        variant="secondary"
         onClick={() => void iniciarEscaneo()}
         disabled={activo}
-        className="touch-target rounded border border-gray-300 px-4 disabled:opacity-50"
       >
+        <Scan size={18} />
         {activo ? 'Escaneando…' : 'Escanear'}
-      </button>
+      </TouchButton>
 
       {activo && (
-        <div className="flex flex-col gap-2">
-          <video ref={videoRef} muted playsInline className="w-full rounded" />
-          <button
-            type="button"
-            onClick={cancelar}
-            className="touch-target rounded border border-gray-300 px-4"
-          >
+        <Card className="flex flex-col gap-2 p-3">
+          <video
+            ref={videoRef}
+            muted
+            playsInline
+            className="w-full rounded-[10px]"
+          />
+          <TouchButton type="button" variant="ghost" onClick={cancelar}>
             Cancelar
-          </button>
-        </div>
+          </TouchButton>
+        </Card>
       )}
 
       {mensaje && (
-        <p role="status" className="text-sm text-gray-600">
-          {mensaje}
-        </p>
+        <Card className="px-3.5 py-2.5">
+          <p role="status" className="text-sm text-text-muted">
+            {mensaje}
+          </p>
+        </Card>
       )}
     </div>
   )

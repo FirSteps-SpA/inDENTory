@@ -15,8 +15,8 @@ export default defineConfig({
         name: 'inDENTory',
         short_name: 'inDENTory',
         description: 'Gestión de inventario dental offline-first',
-        theme_color: '#0f172a',
-        background_color: '#ffffff',
+        theme_color: '#0E5C73',
+        background_color: '#F5F8FA',
         display: 'standalone',
         icons: [
           {

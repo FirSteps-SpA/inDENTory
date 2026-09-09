@@ -144,3 +144,10 @@ vite.config.ts.timestamp-*
 
 # vite-plugin-pwa dev-mode output
 dev-dist/
+
+#ref
+/ref/
+
+# run-indentory skill: generated locally by setup.sh / driver.mjs, never committed
+.claude/skills/run-indentory/pw-libs/
+.claude/skills/run-indentory/screenshots/
