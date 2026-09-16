@@ -96,6 +96,21 @@ npm run build   # compilación (tsc + Vite)
 Cada comando termina con código de salida `0` y sin salida de error si todo está en orden, o con
 código distinto de cero y un mensaje explícito señalando el problema si algo falla.
 
+## Deploy
+
+La app se despliega como sitio estático en **Netlify** (`netlify.toml`: build `npm run build`,
+publish `dist`). El repo debe estar conectado como sitio en el dashboard de Netlify (deploy
+automático en cada push a `main`, previews en cada PR).
+
+En **Site settings → Environment variables** del sitio en Netlify, configura las mismas variables
+que en `.env` local (producción, no las de desarrollo):
+
+- `VITE_SUPABASE_URL`
+- `VITE_SUPABASE_ANON_KEY`
+
+CI (`.github/workflows/ci.yml`) corre `lint`, `test` y `build` en cada push/PR a `main` y
+`develop`, independiente del deploy.
+
 ## ¿Quedó bien configurado mi entorno?
 
 Checklist manual (sin script) — cada punto debe poder confirmarse a simple vista en menos de 2
