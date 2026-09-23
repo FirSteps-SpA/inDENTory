@@ -1,32 +1,32 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import type { Insumo, Lote, Movimiento } from '../../src/lib/db'
+import type { Categoria, Insumo, Lote, Movimiento, UsuarioActual } from '../../src/lib/db'
+import type { MemoryTable } from '../helpers/memoryDb'
 
-const insumosAdd = vi.fn(async (insumo: Insumo) => void insumo)
-const lotesAdd = vi.fn(async (lote: Lote) => void lote)
-const movimientosAdd = vi.fn(async (movimiento: Movimiento) => void movimiento)
+vi.mock('../../src/lib/db', async () => {
+  const { createMemoryDb, MemoryTable } = await import('../helpers/memoryDb')
+  return {
+    db: createMemoryDb({
+      insumos: new MemoryTable(),
+      categorias: new MemoryTable(),
+      lotes: new MemoryTable(),
+      movimientos: new MemoryTable(),
+      borradores: new MemoryTable(),
+      cambiosInsumo: new MemoryTable(),
+      usuarioActual: new MemoryTable(),
+    }),
+  }
+})
 
-vi.mock('../../src/lib/db', () => ({
-  db: {
-    insumos: {
-      add: (...args: Parameters<typeof insumosAdd>) => insumosAdd(...args),
-    },
-    lotes: {
-      add: (...args: Parameters<typeof lotesAdd>) => lotesAdd(...args),
-    },
-    movimientos: {
-      add: (...args: Parameters<typeof movimientosAdd>) =>
-        movimientosAdd(...args),
-    },
-  },
-}))
-
-vi.mock('../../src/stores/authStore', () => ({
-  getUsuarioActualId: () => 'user-1',
-}))
-
+import { db } from '../../src/lib/db'
 import { RegistroForm } from '../../src/features/insumos/components/RegistroForm'
 import { useInventoryStore } from '../../src/stores/inventoryStore'
+import { useAuthStore } from '../../src/stores/authStore'
+
+const insumosT = db.insumos as unknown as MemoryTable<Insumo>
+const categoriasT = db.categorias as unknown as MemoryTable<Categoria>
+const lotesT = db.lotes as unknown as MemoryTable<Lote>
+const movimientosT = db.movimientos as unknown as MemoryTable<Movimiento>
 
 const insumoExistente: Insumo = {
   id: 'insumo-1',
@@ -40,6 +40,7 @@ const insumoExistente: Insumo = {
   stockMinimo: null,
   dadoDeBajaEn: null,
   dadoDeBajaPor: null,
+  creadoPor: null,
 }
 
 const insumoNoCaduca: Insumo = {
@@ -54,11 +55,28 @@ const insumoNoCaduca: Insumo = {
   stockMinimo: null,
   dadoDeBajaEn: null,
   dadoDeBajaPor: null,
+  creadoPor: null,
 }
+
+const personal: UsuarioActual = {
+  id: 'user-1',
+  email: 'p@x.cl',
+  nombre: 'Personal',
+  rol: 'personal',
+  autenticadoEn: '2026-01-01T00:00:00.000Z',
+}
+
+beforeEach(() => {
+  insumosT.seed([])
+  categoriasT.seed([])
+  lotesT.seed([])
+  movimientosT.seed([])
+  useAuthStore.setState({ usuario: personal, isReady: true })
+})
 
 afterEach(() => {
   vi.clearAllMocks()
-  useInventoryStore.setState({ insumos: [], lotes: [], isReady: true })
+  useInventoryStore.setState({ insumos: [], lotes: [], categorias: [], isReady: true })
 })
 
 describe('RegistroForm (User Story 1, quickstart Scenario 1)', () => {
@@ -91,10 +109,10 @@ describe('RegistroForm (User Story 1, quickstart Scenario 1)', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Guardar lote' }))
 
-    await waitFor(() => expect(lotesAdd).toHaveBeenCalledTimes(1))
-    expect(movimientosAdd).toHaveBeenCalledTimes(1)
+    await waitFor(() => expect(lotesT.all()).toHaveLength(1))
+    expect(movimientosT.all()).toHaveLength(1)
 
-    const loteGuardado = lotesAdd.mock.calls[0][0]
+    const loteGuardado = lotesT.all()[0]
     expect(loteGuardado).toMatchObject({
       insumoId: 'insumo-1',
       numeroLote: 'L-100',
@@ -103,7 +121,7 @@ describe('RegistroForm (User Story 1, quickstart Scenario 1)', () => {
       estado: 'activo',
     })
 
-    const movimientoGuardado = movimientosAdd.mock.calls[0][0]
+    const movimientoGuardado = movimientosT.all()[0]
     expect(movimientoGuardado).toMatchObject({
       tipo: 'ingreso',
       loteId: loteGuardado.id,
@@ -114,8 +132,13 @@ describe('RegistroForm (User Story 1, quickstart Scenario 1)', () => {
     expect(await screen.findByText(/registrado/)).toBeInTheDocument()
   })
 
-  it('crea un insumo nuevo inline cuando la búsqueda no encuentra coincidencias (FR-003)', async () => {
-    useInventoryStore.setState({ insumos: [], lotes: [], isReady: true })
+  it('abre "Nuevo Material" con el nombre prefilled cuando la búsqueda no encuentra coincidencias (FR-003/FR-004)', async () => {
+    useInventoryStore.setState({
+      insumos: [],
+      lotes: [],
+      categorias: [],
+      isReady: true,
+    })
 
     render(<RegistroForm />)
 
@@ -127,20 +150,65 @@ describe('RegistroForm (User Story 1, quickstart Scenario 1)', () => {
     ).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Crear insumo nuevo' }))
-    fireEvent.change(screen.getByLabelText('Categoría'), {
-      target: { value: 'Materiales' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: 'Guardar insumo' }))
 
-    await waitFor(() => expect(insumosAdd).toHaveBeenCalledTimes(1))
-    expect(insumosAdd.mock.calls[0][0]).toMatchObject({
+    expect(
+      await screen.findByRole('heading', { name: 'Nuevo Material' }),
+    ).toBeInTheDocument()
+    expect(screen.getByLabelText('Nombre del material')).toHaveValue('Alginato')
+
+    fireEvent.change(screen.getByLabelText('Categoría'), {
+      target: { value: 'Fresas' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+
+    await waitFor(() => expect(insumosT.all()).toHaveLength(1))
+    expect(insumosT.all()[0]).toMatchObject({
       nombre: 'Alginato',
-      categoria: 'Materiales',
+      categoria: 'Fresas',
     })
 
     // Selecting the newly created insumo moves straight into the lote
     // fields, without leaving the form (FR-003).
     expect(await screen.findByLabelText('Número de lote')).toBeInTheDocument()
+  })
+
+  it('con stock inicial muestra el mensaje de éxito y vuelve a la búsqueda (spec 008 R7)', async () => {
+    useInventoryStore.setState({
+      insumos: [],
+      lotes: [],
+      categorias: [],
+      isReady: true,
+    })
+
+    render(<RegistroForm />)
+
+    fireEvent.change(screen.getByLabelText('Buscar insumo'), {
+      target: { value: 'Hilo sutura' },
+    })
+    await screen.findByText(/No se encontraron insumos/)
+    fireEvent.click(screen.getByRole('button', { name: 'Crear insumo nuevo' }))
+    await screen.findByRole('heading', { name: 'Nuevo Material' })
+
+    fireEvent.change(screen.getByLabelText('Categoría'), {
+      target: { value: 'Fresas' },
+    })
+    // Stock mínimo's Stepper renders first, then Stock inicial's.
+    fireEvent.click(screen.getAllByRole('button', { name: 'Sumar uno' })[1])
+    fireEvent.change(screen.getByLabelText('Número de lote'), {
+      target: { value: 'L-1' },
+    })
+    fireEvent.change(screen.getByLabelText('Proveedor'), {
+      target: { value: 'Prov' },
+    })
+    fireEvent.change(screen.getByLabelText('Fecha de vencimiento'), {
+      target: { value: '2027-01-01' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar e Ingresar' }))
+
+    expect(
+      await screen.findByText('Lote de "Hilo sutura" registrado.'),
+    ).toBeInTheDocument()
+    expect(screen.getByLabelText('Buscar insumo')).toBeInTheDocument()
   })
 
   it('no pide fecha de caducidad para un insumo marcado como que no caduca (FR-002b)', async () => {
@@ -173,8 +241,8 @@ describe('RegistroForm (User Story 1, quickstart Scenario 1)', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Guardar lote' }))
 
-    await waitFor(() => expect(lotesAdd).toHaveBeenCalledTimes(1))
-    expect(lotesAdd.mock.calls[0][0]).toMatchObject({
+    await waitFor(() => expect(lotesT.all()).toHaveLength(1))
+    expect(lotesT.all()[0]).toMatchObject({
       insumoId: 'insumo-2',
       numeroLote: 'L-200',
       fechaCaducidad: null,

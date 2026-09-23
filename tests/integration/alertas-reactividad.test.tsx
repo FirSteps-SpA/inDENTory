@@ -27,6 +27,7 @@ const insumo: Insumo = {
   stockMinimo: 10,
   dadoDeBajaEn: null,
   dadoDeBajaPor: null,
+  creadoPor: null,
 }
 
 const lote: Lote = {

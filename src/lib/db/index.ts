@@ -1,4 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie'
+import type { AltaMaterialInput } from '../../features/insumos/lib/alta'
 
 /**
  * The locally-cached authenticated identity that gates offline app access
@@ -35,6 +36,8 @@ export interface Insumo {
    */
   dadoDeBajaEn: string | null
   dadoDeBajaPor: string | null
+  /** Feature 008 (R10) — autor del alta; `null` en insumos anteriores a esta spec. */
+  creadoPor: string | null
 }
 
 /** Campos de `Insumo` que un administrador puede editar (feature 007 FR-013). */
@@ -104,6 +107,31 @@ export interface ConfiguracionAlertas {
 }
 
 /**
+ * Feature 008 data-model.md — Categoria. Solo las categorías creadas por
+ * administradores; las precargadas y "Sin categoría" son constantes de
+ * código (`categorias.ts`), no filas.
+ */
+export interface Categoria {
+  id: string
+  nombre: string
+  creadoPor: string
+  creadoEn: string
+  sincronizado: boolean
+  /** Local-only: set when the server rejected it for lack of permissions (R4). */
+  rechazadoEn: string | null
+}
+
+/**
+ * Feature 008 data-model.md — Borrador. Fila única (`id` fija) del
+ * formulario "Nuevo Material" en curso, nunca sincronizada (R6).
+ */
+export interface Borrador {
+  id: 'alta-material'
+  datos: Partial<AltaMaterialInput>
+  actualizadoEn: string
+}
+
+/**
  * IndexedDB client (Constitution I: local-first primary write, Principle IV:
  * batch/expiry/stock queries). Future inventory features add their own
  * domain tables here via `db.version(n).stores({...})`.
@@ -115,6 +143,8 @@ export const db = new Dexie('inDENToryDB') as Dexie & {
   movimientos: EntityTable<Movimiento, 'id'>
   configuracionAlertas: EntityTable<ConfiguracionAlertas, 'id'>
   cambiosInsumo: EntityTable<CambioInsumo, 'id'>
+  categorias: EntityTable<Categoria, 'id'>
+  borradores: EntityTable<Borrador, 'id'>
 }
 
 db.version(1).stores({
@@ -150,6 +180,23 @@ db.version(4)
       .modify((insumo: Partial<Insumo>) => {
         insumo.dadoDeBajaEn ??= null
         insumo.dadoDeBajaPor ??= null
+      }),
+  )
+
+// version(5): feature 008 (data-model.md) — new `categorias` (synced) and
+// `borradores` (local-only) tables; existing insumos get `creadoPor: null`
+// (author unknown for pre-008 rows).
+db.version(5)
+  .stores({
+    categorias: 'id, creadoEn, sincronizado',
+    borradores: 'id',
+  })
+  .upgrade((tx) =>
+    tx
+      .table('insumos')
+      .toCollection()
+      .modify((insumo: Partial<Insumo>) => {
+        insumo.creadoPor ??= null
       }),
   )
 

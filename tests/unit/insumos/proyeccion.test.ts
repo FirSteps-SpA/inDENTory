@@ -17,6 +17,7 @@ const base: Insumo = {
   stockMinimo: null,
   dadoDeBajaEn: null,
   dadoDeBajaPor: null,
+  creadoPor: null,
 }
 
 let n = 0

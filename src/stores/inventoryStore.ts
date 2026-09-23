@@ -3,11 +3,13 @@ import { liveQuery } from 'dexie'
 import {
   db,
   type CambioInsumo,
+  type Categoria,
   type Insumo,
   type Lote,
   type Movimiento,
 } from '../lib/db'
 import type { Estado, EstadoInsumo } from '../features/insumos/lib/estado'
+import { claveCategoria } from '../features/insumos/lib/categorias'
 
 /**
  * Reactive in-memory cache of the insumo/lote catalog (Constitution II),
@@ -21,13 +23,16 @@ import type { Estado, EstadoInsumo } from '../features/insumos/lib/estado'
  * insumos dados de baja are filtered here, once, so every consumer (listado,
  * alertas, SearchPicker, validación de nombres) excludes them without code
  * of its own. Their lotes stay in `lotes`, but every alert calculator skips
- * lotes whose insumo isn't in the array.
+ * lotes whose insumo isn't in the array. `categorias` (feature 008) holds
+ * only categories created by administrators — the precargadas and "Sin
+ * categoría" are constants in `categorias.ts`, never rows here.
  */
 interface InventoryState {
   insumos: Insumo[]
   lotes: Lote[]
   movimientos: Movimiento[]
   cambiosInsumo: CambioInsumo[]
+  categorias: Categoria[]
   isReady: boolean
   subscribe: () => () => void
 }
@@ -37,6 +42,7 @@ export const useInventoryStore = create<InventoryState>((set) => ({
   lotes: [],
   movimientos: [],
   cambiosInsumo: [],
+  categorias: [],
   isReady: false,
   subscribe: () => {
     const insumosSub = liveQuery(() => db.insumos.toArray()).subscribe({
@@ -55,11 +61,15 @@ export const useInventoryStore = create<InventoryState>((set) => ({
     const cambiosSub = liveQuery(() => db.cambiosInsumo.toArray()).subscribe({
       next: (cambiosInsumo) => set({ cambiosInsumo }),
     })
+    const categoriasSub = liveQuery(() => db.categorias.toArray()).subscribe({
+      next: (categorias) => set({ categorias }),
+    })
     return () => {
       cambiosSub.unsubscribe()
       insumosSub.unsubscribe()
       lotesSub.unsubscribe()
       movimientosSub.unsubscribe()
+      categoriasSub.unsubscribe()
     }
   },
 }))
@@ -74,17 +84,17 @@ export function searchInsumosPorTexto(
   return insumos.filter((insumo) => insumo.nombre.toLowerCase().includes(q))
 }
 
-/** Búsqueda por categoría (FR-001/004/010). */
+/**
+ * Búsqueda por categoría (FR-001/004/010). Compara por `claveCategoria`
+ * (spec 008 research.md R2) para que "fresas" caiga bajo el chip "Fresas".
+ */
 export function searchInsumosPorCategoria(
   insumos: Insumo[],
   categoria: string,
 ): Insumo[] {
   if (!categoria) return insumos
-  return insumos.filter((insumo) => insumo.categoria === categoria)
-}
-
-export function categoriasDisponibles(insumos: Insumo[]): string[] {
-  return Array.from(new Set(insumos.map((insumo) => insumo.categoria))).sort()
+  const clave = claveCategoria(categoria)
+  return insumos.filter((insumo) => claveCategoria(insumo.categoria) === clave)
 }
 
 /** Selección rápida: los insumos dados de alta más recientemente. */

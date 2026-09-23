@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type {
   CambioInsumo,
+  Categoria,
   Insumo,
   Movimiento,
   UsuarioActual,
@@ -15,6 +16,7 @@ vi.mock('../../../src/lib/db', async () => {
       cambiosInsumo: new MemoryTable(),
       lotes: new MemoryTable(),
       movimientos: new MemoryTable(),
+      categorias: new MemoryTable(),
       usuarioActual: new MemoryTable(),
     }),
   }
@@ -27,10 +29,12 @@ import {
   editarInsumo,
   validarEdicionInsumo,
 } from '../../../src/features/insumos/lib/catalogo'
+import { catalogoCategorias } from '../../../src/features/insumos/lib/categorias'
 
 const insumosT = db.insumos as unknown as MemoryTable<Insumo>
 const cambiosT = db.cambiosInsumo as unknown as MemoryTable<CambioInsumo>
 const movimientosT = db.movimientos as unknown as MemoryTable<Movimiento>
+const categoriasT = db.categorias as unknown as MemoryTable<Categoria>
 
 function insumo(overrides: Partial<Insumo>): Insumo {
   return {
@@ -45,6 +49,7 @@ function insumo(overrides: Partial<Insumo>): Insumo {
     stockMinimo: null,
     dadoDeBajaEn: null,
     dadoDeBajaPor: null,
+    creadoPor: null,
     ...overrides,
   }
 }
@@ -65,34 +70,42 @@ beforeEach(() => {
   insumosT.seed([a, b])
   cambiosT.seed([])
   movimientosT.seed([])
+  categoriasT.seed([])
   useAuthStore.setState({ usuario: admin, isReady: true })
 })
 
 describe('validarEdicionInsumo (FR-014)', () => {
   const activos = [a, b]
+  const catalogo = catalogoCategorias([], activos)
 
   it('rejects an empty name', () => {
-    const r = validarEdicionInsumo(a, { nombre: '   ' }, activos)
+    const r = validarEdicionInsumo(a, { nombre: '   ' }, activos, catalogo)
     expect(r.valido === false && r.errores.nombre).toBeTruthy()
   })
 
   it('rejects a name used by another active insumo, ignoring case and spaces', () => {
-    const r = validarEdicionInsumo(a, { nombre: '  fresa diamante ' }, activos)
+    const r = validarEdicionInsumo(
+      a,
+      { nombre: '  fresa diamante ' },
+      activos,
+      catalogo,
+    )
     expect(r.valido === false && r.errores.nombre).toMatch(/Ya existe/)
   })
 
   it('ignores insumos dados de baja for uniqueness', () => {
-    const r = validarEdicionInsumo(a, { nombre: 'Fresa Diamante' }, [a])
+    const r = validarEdicionInsumo(a, { nombre: 'Fresa Diamante' }, [a], catalogo)
     expect(r.valido === false && 'nombre' in r.errores).toBe(false)
   })
 
   it('rejects a negative or (for countable units) decimal stock mínimo', () => {
-    const neg = validarEdicionInsumo(a, { stockMinimo: -1 }, activos)
-    const dec = validarEdicionInsumo(a, { stockMinimo: 1.5 }, activos)
+    const neg = validarEdicionInsumo(a, { stockMinimo: -1 }, activos, catalogo)
+    const dec = validarEdicionInsumo(a, { stockMinimo: 1.5 }, activos, catalogo)
     const ml = validarEdicionInsumo(
       a,
       { stockMinimo: 1.5, unidadMedida: 'mL' },
       activos,
+      catalogo,
     )
     expect(neg.valido === false && neg.errores.stockMinimo).toBeTruthy()
     expect(dec.valido === false && dec.errores.stockMinimo).toBeTruthy()
@@ -100,8 +113,36 @@ describe('validarEdicionInsumo (FR-014)', () => {
   })
 
   it('rejects an unknown categoría', () => {
-    const r = validarEdicionInsumo(a, { categoria: 'Inventada' }, activos)
+    const r = validarEdicionInsumo(
+      a,
+      { categoria: 'Inventada' },
+      activos,
+      catalogo,
+    )
     expect(r.valido === false && r.errores.categoria).toBeTruthy()
+  })
+
+  it('accepts a categoría created as a Categoria row', () => {
+    const catalogoConOrtodoncia = catalogoCategorias(
+      [
+        {
+          id: 'cat-1',
+          nombre: 'Ortodoncia',
+          creadoPor: 'admin-1',
+          creadoEn: '2026-01-01T00:00:00.000Z',
+          sincronizado: false,
+          rechazadoEn: null,
+        },
+      ],
+      activos,
+    )
+    const r = validarEdicionInsumo(
+      a,
+      { categoria: 'Ortodoncia' },
+      activos,
+      catalogoConOrtodoncia,
+    )
+    expect(r.valido).toBe(true)
   })
 })
 
@@ -150,6 +191,25 @@ describe('editarInsumo (FR-012/FR-013/FR-015)', () => {
       editarInsumo('i1', { nombre: 'Fresa Diamante' }),
     ).rejects.toThrow()
     expect(cambiosT.all()).toHaveLength(0)
+  })
+
+  it('succeeds when the categoría is a created Categoria row', async () => {
+    categoriasT.seed([
+      {
+        id: 'cat-1',
+        nombre: 'Ortodoncia',
+        creadoPor: 'admin-1',
+        creadoEn: '2026-01-01T00:00:00.000Z',
+        sincronizado: false,
+        rechazadoEn: null,
+      },
+    ])
+
+    await editarInsumo('i1', { categoria: 'Ortodoncia' })
+
+    expect(await db.insumos.get('i1')).toMatchObject({
+      categoria: 'Ortodoncia',
+    })
   })
 })
 

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useBarcodeScanner } from '../../../lib/scanner/useBarcodeScanner'
 import type { Insumo, Lote } from '../../../lib/db'
 import {
@@ -12,7 +12,13 @@ import { TouchButton } from '../../../components/ui/TouchButton'
 
 interface ScanButtonProps {
   /** Selecciona igual que la búsqueda manual — `lote` solo si el código escaneado era de lote. */
-  onSelect: (insumo: Insumo, lote?: Lote) => void
+  onSelect?: (insumo: Insumo, lote?: Lote) => void
+  /**
+   * Spec 008 R8: cuando está presente, un resultado `'match'` entrega el
+   * código crudo y omite la búsqueda de insumo/lote — usado por el alta de
+   * material, que no selecciona nada, solo completa el campo de código.
+   */
+  onCodigo?: (codigo: string) => void
 }
 
 /**
@@ -22,7 +28,7 @@ interface ScanButtonProps {
  * cámara no disponible muestra un mensaje explícito y deja continuar por
  * búsqueda manual sin reiniciar el formulario (FR-011).
  */
-export function ScanButton({ onSelect }: ScanButtonProps) {
+export function ScanButton({ onSelect, onCodigo }: ScanButtonProps) {
   const insumos = useInventoryStore((s) => s.insumos)
   const lotes = useInventoryStore((s) => s.lotes)
   const { scan, stop } = useBarcodeScanner()
@@ -30,43 +36,57 @@ export function ScanButton({ onSelect }: ScanButtonProps) {
   const [activo, setActivo] = useState(false)
   const [mensaje, setMensaje] = useState<string | null>(null)
 
-  async function iniciarEscaneo() {
+  // El `<video>` solo existe una vez que `activo` monta la Card de abajo —
+  // leer `videoRef.current` en el mismo tick que `setActivo(true)` siempre
+  // daría `null` (el commit de React todavía no ocurrió), como ya evita
+  // `EditarInsumoForm`'s `EscanearCodigo` con el mismo patrón.
+  useEffect(() => {
+    if (!activo || !videoRef.current) return
+    let cancelado = false
+    void scan(videoRef.current).then((resultado) => {
+      if (cancelado) return
+      setActivo(false)
+
+      if (resultado.status === 'unavailable') {
+        setMensaje(resultado.message)
+        return
+      }
+      if (resultado.status === 'no-match') {
+        setMensaje('Código no reconocido. Puedes continuar por búsqueda manual.')
+        return
+      }
+
+      if (onCodigo) {
+        onCodigo(resultado.codigo)
+        return
+      }
+
+      const insumoPorCodigo = findInsumoPorCodigo(insumos, resultado.codigo)
+      if (insumoPorCodigo) {
+        onSelect?.(insumoPorCodigo)
+        return
+      }
+
+      const lotePorCodigo = findLotePorCodigo(lotes, resultado.codigo)
+      const insumoDelLote = lotePorCodigo
+        ? insumos.find((insumo) => insumo.id === lotePorCodigo.insumoId)
+        : undefined
+      if (lotePorCodigo && insumoDelLote) {
+        onSelect?.(insumoDelLote, lotePorCodigo)
+        return
+      }
+
+      setMensaje('Código no reconocido. Puedes continuar por búsqueda manual.')
+    })
+    return () => {
+      cancelado = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activo])
+
+  function iniciarEscaneo() {
     setMensaje(null)
     setActivo(true)
-    const video = videoRef.current
-    if (!video) {
-      setActivo(false)
-      return
-    }
-
-    const resultado = await scan(video)
-    setActivo(false)
-
-    if (resultado.status === 'unavailable') {
-      setMensaje(resultado.message)
-      return
-    }
-    if (resultado.status === 'no-match') {
-      setMensaje('Código no reconocido. Puedes continuar por búsqueda manual.')
-      return
-    }
-
-    const insumoPorCodigo = findInsumoPorCodigo(insumos, resultado.codigo)
-    if (insumoPorCodigo) {
-      onSelect(insumoPorCodigo)
-      return
-    }
-
-    const lotePorCodigo = findLotePorCodigo(lotes, resultado.codigo)
-    const insumoDelLote = lotePorCodigo
-      ? insumos.find((insumo) => insumo.id === lotePorCodigo.insumoId)
-      : undefined
-    if (lotePorCodigo && insumoDelLote) {
-      onSelect(insumoDelLote, lotePorCodigo)
-      return
-    }
-
-    setMensaje('Código no reconocido. Puedes continuar por búsqueda manual.')
   }
 
   function cancelar() {
@@ -79,7 +99,7 @@ export function ScanButton({ onSelect }: ScanButtonProps) {
       <TouchButton
         type="button"
         variant="secondary"
-        onClick={() => void iniciarEscaneo()}
+        onClick={iniciarEscaneo}
         disabled={activo}
       >
         <Scan size={18} />

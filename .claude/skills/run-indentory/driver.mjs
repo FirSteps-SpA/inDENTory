@@ -83,6 +83,15 @@ async function runCommand(line) {
       break
     }
 
+    case 'select': {
+      const spaceIdx = arg.indexOf(' ')
+      const sel = arg.slice(0, spaceIdx)
+      const value = arg.slice(spaceIdx + 1)
+      await page.selectOption(sel, { label: value })
+      console.log(`ok: selected ${value} in ${sel}`)
+      break
+    }
+
     case 'reload':
       await page.reload({ waitUntil: 'networkidle' })
       console.log('ok: reloaded')

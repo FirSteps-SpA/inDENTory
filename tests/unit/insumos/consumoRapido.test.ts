@@ -82,6 +82,7 @@ const insumo: Insumo = {
   stockMinimo: null,
   dadoDeBajaEn: null,
   dadoDeBajaPor: null,
+  creadoPor: null,
 }
 
 describe('selectLoteConsumoRapido (FR-002/FR-003)', () => {

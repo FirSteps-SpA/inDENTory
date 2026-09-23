@@ -146,7 +146,7 @@ export function ConsumoForm({ insumoInicial, onDone }: ConsumoFormProps = {}) {
             </p>
           </Card>
         )}
-        <SearchPicker onSelect={seleccionarInsumo} />
+        <SearchPicker onSelect={(insumo) => seleccionarInsumo(insumo)} />
         <ScanButton onSelect={seleccionarInsumo} />
       </div>
     )

@@ -26,6 +26,7 @@ vi.mock('../../src/lib/db', async () => {
       movimientos: new MemoryTable(),
       cambiosInsumo: new MemoryTable(),
       configuracionAlertas: new MemoryTable(),
+      categorias: new MemoryTable(),
       usuarioActual: new MemoryTable(),
     }),
   }
@@ -72,6 +73,7 @@ function insumo(
     stockMinimo: null,
     dadoDeBajaEn: null,
     dadoDeBajaPor: null,
+    creadoPor: null,
     ...overrides,
   }
 }

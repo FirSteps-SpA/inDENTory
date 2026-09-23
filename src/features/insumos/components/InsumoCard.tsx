@@ -14,6 +14,8 @@ import { TouchButton } from '../../../components/ui/TouchButton'
 export interface InsumoCardProps {
   estadoInsumo: EstadoInsumo
   disponibilidad: DisponibilidadConsumoRapido
+  /** Spec 008 FR-026/R9 — solo lo pasa `InventarioView` cuando el usuario es administrador. */
+  posibleDuplicado?: boolean
   onOpen: (insumoId: string) => void
   onConsumirUno: (insumoId: string) => void
   onAbrirMenu: (insumoId: string) => void
@@ -53,6 +55,7 @@ const MOTIVO_DESHABILITADO: Record<'sin-stock' | 'solo-caducado', string> = {
 export function InsumoCard({
   estadoInsumo,
   disponibilidad,
+  posibleDuplicado = false,
   onOpen,
   onConsumirUno,
   onAbrirMenu,
@@ -75,6 +78,9 @@ export function InsumoCard({
             <badge.Icon size={12} />
             {badge.label}
           </Badge>
+          {posibleDuplicado && (
+            <Badge variant="warning-30">Posible duplicado</Badge>
+          )}
         </span>
         <span className="text-sm font-bold text-text">{insumo.nombre}</span>
         {loteMasProximoAVencer?.fechaCaducidad && (

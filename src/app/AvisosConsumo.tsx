@@ -6,6 +6,12 @@ function textoAviso(aviso: Aviso): string {
   if (aviso.tipo === 'cambio-rechazado') {
     return `Tu cambio en «${aviso.insumoNombre}» no se guardó: ya no tienes permisos de administrador.`
   }
+  if (aviso.tipo === 'material-creado') {
+    return `«${aviso.insumoNombre}» agregado al inventario`
+  }
+  if (aviso.tipo === 'categoria-rechazada') {
+    return `La categoría «${aviso.insumoNombre}» no se guardó: ya no tienes permisos de administrador.`
+  }
   if (aviso.estado === 'revertido') return 'Consumo revertido'
   return `Consumido 1 ${aviso.unidadMedida ?? ''} de ${aviso.insumoNombre}`.replace(
     '  ',
@@ -34,7 +40,8 @@ export function AvisosConsumo() {
           key={aviso.id}
           className="pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-[14px] bg-text px-3.5 py-1.5 text-left text-sm text-white shadow-lg"
         >
-          {aviso.tipo === 'cambio-rechazado' ? (
+          {aviso.tipo === 'cambio-rechazado' ||
+          aviso.tipo === 'categoria-rechazada' ? (
             <AlertTriangle size={18} className="shrink-0" />
           ) : (
             <Check size={18} className="shrink-0" />

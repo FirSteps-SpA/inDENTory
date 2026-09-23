@@ -4,10 +4,10 @@ import {
   searchInsumosPorTexto,
   searchInsumosPorCategoria,
   searchInsumosPorEstado,
-  categoriasDisponibles,
 } from '../../../stores/inventoryStore'
 import { useAlertasStore } from '../../../stores/alertasStore'
 import { useAuthStore } from '../../../stores/authStore'
+import { useAvisosStore } from '../../../stores/avisosStore'
 import { computeInsumosStockBajo } from '../../alertas/lib/stockBajo'
 import { computeAlertasCaducidad } from '../../alertas/lib/caducidad'
 import { computeEstadoInsumo, type Estado } from '../lib/estado'
@@ -17,17 +17,21 @@ import {
   selectLoteConsumoRapido,
 } from '../lib/consumoRapido'
 import { darDeBajaInsumo } from '../lib/catalogo'
+import { categoriasEnUso } from '../lib/categorias'
+import { posiblesDuplicados } from '../lib/alta'
 import { ResumenAlertasBanner } from './ResumenAlertasBanner'
 import { InsumoFiltros } from './InsumoFiltros'
 import { InsumoCard } from './InsumoCard'
 import { InsumoDetalle } from './InsumoDetalle'
 import { InsumoAccionesMenu } from './InsumoAccionesMenu'
+import { AltaMaterialView } from './AltaMaterialView'
 import { ConsumoForm } from './ConsumoForm'
 import { EditarInsumoForm } from './EditarInsumoForm'
 import { ConfirmarBajaDialog } from './ConfirmarBajaDialog'
 import { BottomSheet } from '../../../components/ui/BottomSheet'
 import { Card } from '../../../components/ui/Card'
 import { TouchButton } from '../../../components/ui/TouchButton'
+import { Plus } from '../../../components/icons'
 
 type Overlay = {
   tipo: 'menu' | 'consumir' | 'editar' | 'baja'
@@ -54,6 +58,7 @@ export function InventarioView() {
   const insumos = useInventoryStore((s) => s.insumos)
   const lotes = useInventoryStore((s) => s.lotes)
   const movimientos = useInventoryStore((s) => s.movimientos)
+  const categoriasRows = useInventoryStore((s) => s.categorias)
   const nivelesAvisoDias = useAlertasStore((s) => s.nivelesAvisoDias)
   const rol = useAuthStore((s) => s.usuario?.rol)
 
@@ -66,6 +71,7 @@ export function InventarioView() {
   const [overlay, setOverlay] = useState<Overlay>(null)
   const [errorAccion, setErrorAccion] = useState<string | null>(null)
   const [bajaPendiente, setBajaPendiente] = useState(false)
+  const [altaAbierta, setAltaAbierta] = useState(false)
 
   const totalCaducidad = computeAlertasCaducidad(
     insumos,
@@ -104,6 +110,8 @@ export function InventarioView() {
     id ? (insumos.find((insumo) => insumo.id === id) ?? null) : null
   const insumoDetalle = insumoActivo(insumoSeleccionadoId)
   const insumoOverlay = overlay ? insumoActivo(overlay.insumoId) : null
+  const duplicados =
+    rol === 'administrador' ? posiblesDuplicados(insumos) : new Set<string>()
 
   function limpiarFiltros() {
     setTexto('')
@@ -150,10 +158,15 @@ export function InventarioView() {
         onFiltrarStockBajo={() => setEstado(['bajo-stock'])}
       />
 
+      <TouchButton type="button" onClick={() => setAltaAbierta(true)}>
+        <Plus size={18} />
+        Material
+      </TouchButton>
+
       <InsumoFiltros
         texto={texto}
         onTextoChange={setTexto}
-        categorias={categoriasDisponibles(insumos)}
+        categorias={categoriasEnUso(categoriasRows, insumos).map((c) => c.nombre)}
         categoria={categoria}
         onCategoriaChange={setCategoria}
         estado={estado}
@@ -181,6 +194,7 @@ export function InventarioView() {
                   movimientos,
                 ),
               )}
+              posibleDuplicado={duplicados.has(estadoInsumo.insumo.id)}
               onOpen={setInsumoSeleccionadoId}
               onConsumirUno={(id) => void handleConsumirUno(id)}
               onAbrirMenu={(id) => setOverlay({ tipo: 'menu', insumoId: id })}
@@ -274,6 +288,26 @@ export function InventarioView() {
           error={errorAccion}
           onConfirmar={() => void handleConfirmarBaja(insumoOverlay.id)}
           onCancelar={cerrarOverlay}
+        />
+      )}
+
+      {altaAbierta && (
+        <AltaMaterialView
+          onCreated={({ insumo }) => {
+            setAltaAbierta(false)
+            useAvisosStore.getState().agregar({
+              tipo: 'material-creado',
+              movimientoId: null,
+              loteId: null,
+              insumoNombre: insumo.nombre,
+              unidadMedida: null,
+            })
+          }}
+          onCancel={() => setAltaAbierta(false)}
+          onAbrirExistente={(insumo) => {
+            setAltaAbierta(false)
+            setInsumoSeleccionadoId(insumo.id)
+          }}
         />
       )}
     </div>
