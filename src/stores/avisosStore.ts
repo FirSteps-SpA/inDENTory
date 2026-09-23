@@ -2,19 +2,25 @@ import { create } from 'zustand'
 import { deshacerConsumo } from '../features/insumos/lib/consumoRapido'
 
 export const DURACION_AVISO_MS = 8000
+export const DURACION_MATERIAL_CREADO_MS = 4000
 export const DURACION_REVERTIDO_MS = 2000
 export const MAX_AVISOS = 3
 
 /** data-model.md's "Aviso" — transient UI state, never persisted. */
 export interface Aviso {
   id: string
-  tipo: 'consumo' | 'cambio-rechazado'
+  tipo: 'consumo' | 'cambio-rechazado' | 'material-creado' | 'categoria-rechazada'
   movimientoId: string | null
   loteId: string | null
   insumoNombre: string
   unidadMedida: string | null
   estado: 'pendiente' | 'revertido'
   expiraEn: number
+}
+
+/** Informativos (spec 008): nunca tienen "Deshacer" ni ceden su turno a uno de consumo. */
+function esInformativo(aviso: Pick<Aviso, 'tipo'>): boolean {
+  return aviso.tipo === 'material-creado' || aviso.tipo === 'categoria-rechazada'
 }
 
 export type NuevoAviso = Omit<Aviso, 'id' | 'estado' | 'expiraEn'>
@@ -47,21 +53,29 @@ function programar(id: string, ms: number, fn: () => void) {
 export const useAvisosStore = create<AvisosState>((set, get) => ({
   avisos: [],
   agregar: (nuevo) => {
+    const duracion =
+      nuevo.tipo === 'material-creado'
+        ? DURACION_MATERIAL_CREADO_MS
+        : DURACION_AVISO_MS
     const aviso: Aviso = {
       ...nuevo,
       id: crypto.randomUUID(),
       estado: 'pendiente',
-      expiraEn: Date.now() + DURACION_AVISO_MS,
+      expiraEn: Date.now() + duracion,
     }
-    const avisos = [...get().avisos, aviso]
+    let avisos = [...get().avisos, aviso]
     while (avisos.length > MAX_AVISOS) {
-      const retirado = avisos.shift()!
+      const indice = avisos.findIndex(esInformativo)
+      const retirado = avisos[indice === -1 ? 0 : indice]
+      avisos = avisos.filter((a) => a.id !== retirado.id)
       const timer = timers.get(retirado.id)
       if (timer) clearTimeout(timer)
       timers.delete(retirado.id)
     }
     set({ avisos })
-    programar(aviso.id, DURACION_AVISO_MS, () => get().descartar(aviso.id))
+    if (avisos.some((a) => a.id === aviso.id)) {
+      programar(aviso.id, duracion, () => get().descartar(aviso.id))
+    }
   },
   deshacer: async (avisoId) => {
     const aviso = get().avisos.find((a) => a.id === avisoId)

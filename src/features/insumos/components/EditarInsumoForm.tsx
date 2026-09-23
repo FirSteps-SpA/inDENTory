@@ -1,17 +1,15 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
 import type { CampoEditableInsumo, Insumo } from '../../../lib/db'
 import { useBarcodeScanner } from '../../../lib/scanner/useBarcodeScanner'
-import {
-  categoriasDisponibles,
-  lotesDeInsumo,
-  useInventoryStore,
-} from '../../../stores/inventoryStore'
+import { lotesDeInsumo, useInventoryStore } from '../../../stores/inventoryStore'
 import {
   editarInsumo,
   validarEdicionInsumo,
+  ETIQUETAS_UNIDAD,
   UNIDADES_MEDIDA,
   type CambiosInsumoInput,
 } from '../lib/catalogo'
+import { catalogoCategorias, resolverCategoria } from '../lib/categorias'
 import { permiteDecimales } from '../lib/quantity'
 import { Minus, Plus, Scan } from '../../../components/icons'
 import { Card } from '../../../components/ui/Card'
@@ -118,8 +116,12 @@ export function EditarInsumoForm({
 }: EditarInsumoFormProps) {
   const insumos = useInventoryStore((s) => s.insumos)
   const lotes = useInventoryStore((s) => s.lotes)
+  const categoriasRows = useInventoryStore((s) => s.categorias)
+  const catalogo = catalogoCategorias(categoriasRows, insumos)
   const [nombre, setNombre] = useState(insumo.nombre)
-  const [categoria, setCategoria] = useState(insumo.categoria)
+  const [categoria, setCategoria] = useState(
+    () => resolverCategoria(insumo.categoria, catalogo) ?? insumo.categoria,
+  )
   const [unidadMedida, setUnidadMedida] = useState(insumo.unidadMedida)
   const [stockMinimo, setStockMinimo] = useState(
     insumo.stockMinimo === null ? '' : String(insumo.stockMinimo),
@@ -151,7 +153,6 @@ export function EditarInsumoForm({
     stockMinimoValor !== insumo.stockMinimo ||
     (codigoFabricante.trim() || null) !== insumo.codigoFabricante ||
     caduca !== insumo.caduca
-  const categorias = categoriasDisponibles(insumos)
   const tieneLotes = lotesDeInsumo(lotes, insumo.id).length > 0
 
   function ajustarMinimo(delta: number) {
@@ -162,7 +163,7 @@ export function EditarInsumoForm({
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     setErrorGeneral(null)
-    const validacion = validarEdicionInsumo(insumo, cambios, insumos)
+    const validacion = validarEdicionInsumo(insumo, cambios, insumos, catalogo)
     if (!validacion.valido) {
       setErrores(validacion.errores)
       return
@@ -214,9 +215,9 @@ export function EditarInsumoForm({
             className="touch-target rounded-xl border border-border bg-surface px-3.5 text-[15px] font-normal text-text"
             {...errorProps('categoria')}
           >
-            {categorias.map((c) => (
-              <option key={c} value={c}>
-                {c}
+            {catalogo.map((c) => (
+              <option key={c.clave} value={c.nombre}>
+                {c.nombre}
               </option>
             ))}
           </select>
@@ -235,7 +236,7 @@ export function EditarInsumoForm({
           >
             {UNIDADES_MEDIDA.map((u) => (
               <option key={u} value={u}>
-                {u}
+                {ETIQUETAS_UNIDAD[u]}
               </option>
             ))}
           </select>

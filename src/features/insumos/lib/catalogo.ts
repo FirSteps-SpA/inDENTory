@@ -5,12 +5,34 @@ import {
   type Insumo,
 } from '../../../lib/db'
 import { useAuthStore } from '../../../stores/authStore'
-import { categoriasDisponibles } from '../../../stores/inventoryStore'
+import {
+  catalogoCategorias,
+  resolverCategoria,
+  type CategoriaCatalogo,
+} from './categorias'
 import { reproyectarEnTransaccion } from './proyeccion'
 import { permiteDecimales } from './quantity'
 
-/** Mismas unidades que el alta de insumos (spec 002, `SearchPicker`). */
-export const UNIDADES_MEDIDA = ['pieza', 'caja', 'mL', 'g'] as const
+/** Unidades de medida del alta/edición de insumos (spec 008 research.md R5). */
+export const UNIDADES_MEDIDA = [
+  'caja',
+  'frasco',
+  'pieza',
+  'cartucho',
+  'mL',
+  'g',
+] as const
+
+export type UnidadMedida = (typeof UNIDADES_MEDIDA)[number]
+
+export const ETIQUETAS_UNIDAD: Record<UnidadMedida, string> = {
+  caja: 'Caja',
+  frasco: 'Frasco',
+  pieza: 'Pieza',
+  cartucho: 'Cartucho',
+  mL: 'mL',
+  g: 'g',
+}
 
 export type CambiosInsumoInput = Partial<Pick<Insumo, CampoEditableInsumo>>
 
@@ -27,8 +49,27 @@ const CAMPOS_EDITABLES: CampoEditableInsumo[] = [
   'caduca',
 ]
 
-function claveNombre(nombre: string): string {
+export function claveNombre(nombre: string): string {
   return nombre.trim().toLocaleLowerCase('es')
+}
+
+/**
+ * Reglas de stock mínimo compartidas por el alta (spec 008) y la edición
+ * (spec 007 FR-014): `null` (sin alerta) siempre es válido; si no, un
+ * número ≥ 0, entero cuando la unidad no admite decimales.
+ */
+export function validarStockMinimo(
+  minimo: number | null,
+  unidadMedida: string,
+): string | null {
+  if (minimo === null) return null
+  if (!Number.isFinite(minimo) || minimo < 0) {
+    return 'El stock mínimo debe ser un número mayor o igual a 0.'
+  }
+  if (!permiteDecimales(unidadMedida) && !Number.isInteger(minimo)) {
+    return `La unidad "${unidadMedida}" no admite decimales.`
+  }
+  return null
 }
 
 /** Normaliza lo escrito en el formulario al valor que se persiste. */
@@ -51,6 +92,7 @@ export function validarEdicionInsumo(
   insumo: Insumo,
   cambios: CambiosInsumoInput,
   insumosActivos: Insumo[],
+  catalogo: CategoriaCatalogo[],
 ): ValidacionEdicion {
   const resultado = { ...insumo, ...normalizar(cambios) }
   const errores: Partial<Record<CampoEditableInsumo, string>> = {}
@@ -67,7 +109,7 @@ export function validarEdicionInsumo(
     errores.nombre = 'Ya existe otro insumo con ese nombre.'
   }
 
-  if (!categoriasDisponibles(insumosActivos).includes(resultado.categoria)) {
+  if (resolverCategoria(resultado.categoria, catalogo) === null) {
     errores.categoria = 'Elige una categoría existente.'
   }
 
@@ -77,18 +119,11 @@ export function validarEdicionInsumo(
     errores.unidadMedida = 'Elige una unidad de medida válida.'
   }
 
-  const minimo = resultado.stockMinimo
-  if (minimo !== null) {
-    if (!Number.isFinite(minimo) || minimo < 0) {
-      errores.stockMinimo =
-        'El stock mínimo debe ser un número mayor o igual a 0.'
-    } else if (
-      !permiteDecimales(resultado.unidadMedida) &&
-      !Number.isInteger(minimo)
-    ) {
-      errores.stockMinimo = `La unidad "${resultado.unidadMedida}" no admite decimales.`
-    }
-  }
+  const errorStockMinimo = validarStockMinimo(
+    resultado.stockMinimo,
+    resultado.unidadMedida,
+  )
+  if (errorStockMinimo) errores.stockMinimo = errorStockMinimo
 
   return Object.keys(errores).length === 0
     ? { valido: true }
@@ -137,32 +172,50 @@ export async function editarInsumo(
   const usuarioId = exigirAdministrador('editar')
   const normalizados = normalizar(cambios)
 
-  await db.transaction('rw', db.insumos, db.cambiosInsumo, async () => {
-    const insumo = await db.insumos.get(insumoId)
-    if (!insumo) throw new Error('El insumo no existe.')
+  await db.transaction(
+    'rw',
+    db.insumos,
+    db.cambiosInsumo,
+    db.categorias,
+    async () => {
+      const insumo = await db.insumos.get(insumoId)
+      if (!insumo) throw new Error('El insumo no existe.')
 
-    const activos = (await db.insumos.toArray()).filter((i) => !i.dadoDeBajaEn)
-    const validacion = validarEdicionInsumo(insumo, normalizados, activos)
-    if (!validacion.valido) {
-      throw new Error(Object.values(validacion.errores).join(' '))
-    }
+      const activos = (await db.insumos.toArray()).filter(
+        (i) => !i.dadoDeBajaEn,
+      )
+      const catalogo = catalogoCategorias(
+        await db.categorias.toArray(),
+        activos,
+      )
+      const validacion = validarEdicionInsumo(
+        insumo,
+        normalizados,
+        activos,
+        catalogo,
+      )
+      if (!validacion.valido) {
+        throw new Error(Object.values(validacion.errores).join(' '))
+      }
 
-    const nuevos = CAMPOS_EDITABLES.filter(
-      (campo) => campo in normalizados && normalizados[campo] !== insumo[campo],
-    ).map((campo) =>
-      nuevoCambio(
-        insumoId,
-        campo,
-        insumo[campo],
-        normalizados[campo] ?? null,
-        usuarioId,
-      ),
-    )
-    if (nuevos.length === 0) return
+      const nuevos = CAMPOS_EDITABLES.filter(
+        (campo) =>
+          campo in normalizados && normalizados[campo] !== insumo[campo],
+      ).map((campo) =>
+        nuevoCambio(
+          insumoId,
+          campo,
+          insumo[campo],
+          normalizados[campo] ?? null,
+          usuarioId,
+        ),
+      )
+      if (nuevos.length === 0) return
 
-    await db.cambiosInsumo.bulkAdd(nuevos)
-    await reproyectarEnTransaccion([insumoId])
-  })
+      await db.cambiosInsumo.bulkAdd(nuevos)
+      await reproyectarEnTransaccion([insumoId])
+    },
+  )
 }
 
 /**

@@ -40,6 +40,7 @@ const insumo: Insumo = {
   stockMinimo: null,
   dadoDeBajaEn: null,
   dadoDeBajaPor: null,
+  creadoPor: null,
 }
 
 const loteProximo: Lote = {

@@ -93,8 +93,12 @@ export function RegistroForm() {
           </Card>
         )}
         <SearchPicker
-          onSelect={(selected) => {
+          onSelect={(selected, opciones) => {
             setMensajeExito(null)
+            if (opciones?.conLoteInicial) {
+              setMensajeExito(`Lote de "${selected.nombre}" registrado.`)
+              return
+            }
             setInsumo(selected)
           }}
         />

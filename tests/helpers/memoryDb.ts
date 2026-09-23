@@ -81,6 +81,11 @@ export class MemoryTable<T extends Row> {
     this.changed()
   }
 
+  async delete(id: string): Promise<void> {
+    this.rows.delete(id)
+    this.changed()
+  }
+
   where(campo: keyof T & string) {
     return {
       equals: (valor: unknown) => ({
@@ -114,9 +119,27 @@ export function createMemoryDb<Tables extends Record<string, MemoryTable<any>>>(
   let cola: Promise<unknown> = Promise.resolve()
   return {
     ...tables,
+    /**
+     * Snapshots every table before running `fn` and restores them if it
+     * rejects — mirroring the atomic rollback a real Dexie `rw` transaction
+     * gives `darDeAltaMaterial` (spec 008 research.md R3), so a simulated
+     * write failure partway through leaves nothing behind in tests.
+     */
     transaction(...args: unknown[]) {
       const fn = args[args.length - 1] as () => Promise<unknown>
-      const resultado = cola.then(() => fn())
+      const resultado = cola.then(async () => {
+        const snapshot = Object.entries(tables).map(
+          ([nombre, tabla]) => [nombre, new Map(tabla.rows)] as const,
+        )
+        try {
+          return await fn()
+        } catch (error) {
+          for (const [nombre, filas] of snapshot) {
+            tables[nombre].rows = filas
+          }
+          throw error
+        }
+      })
       cola = resultado.catch(() => undefined)
       return resultado
     },

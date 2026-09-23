@@ -3,6 +3,7 @@ import { getSupabaseStatus } from '../supabase'
 import {
   db,
   type CambioInsumo,
+  type Categoria,
   type ConfiguracionAlertas,
   type Insumo,
   type Lote,
@@ -13,6 +14,12 @@ import {
   filaParaSubir,
   reproyectarInsumos,
 } from '../../features/insumos/lib/proyeccion'
+import {
+  SIN_CATEGORIA,
+  catalogoCategorias,
+  claveCategoria,
+  resolverCategoria,
+} from '../../features/insumos/lib/categorias'
 import { useAuthStore } from '../../stores/authStore'
 import { useAvisosStore } from '../../stores/avisosStore'
 import { reconcileOverdraft } from './reconcileOverdraft'
@@ -29,6 +36,7 @@ interface InsumoRow {
   stock_minimo: number | null
   dado_de_baja_en?: string | null
   dado_de_baja_por?: string | null
+  creado_por?: string | null
 }
 
 interface ConfiguracionAlertasRow {
@@ -57,6 +65,33 @@ interface CambioInsumoRow {
   creado_en: string
 }
 
+interface CategoriaRow {
+  id: string
+  nombre: string
+  creado_por: string
+  creado_en: string
+}
+
+function toCategoriaRow(categoria: Categoria): CategoriaRow {
+  return {
+    id: categoria.id,
+    nombre: categoria.nombre,
+    creado_por: categoria.creadoPor,
+    creado_en: categoria.creadoEn,
+  }
+}
+
+function fromCategoriaRow(row: CategoriaRow): Categoria {
+  return {
+    id: row.id,
+    nombre: row.nombre,
+    creadoPor: row.creado_por,
+    creadoEn: row.creado_en,
+    sincronizado: true,
+    rechazadoEn: null,
+  }
+}
+
 interface MovimientoRow {
   id: string
   tipo: Movimiento['tipo']
@@ -80,6 +115,7 @@ function toInsumoRow(insumo: Insumo): InsumoRow {
     stock_minimo: insumo.stockMinimo,
     dado_de_baja_en: insumo.dadoDeBajaEn,
     dado_de_baja_por: insumo.dadoDeBajaPor,
+    creado_por: insumo.creadoPor,
   }
 }
 
@@ -96,6 +132,7 @@ function fromInsumoRow(row: InsumoRow): Insumo {
     stockMinimo: row.stock_minimo,
     dadoDeBajaEn: row.dado_de_baja_en ?? null,
     dadoDeBajaPor: row.dado_de_baja_por ?? null,
+    creadoPor: row.creado_por ?? null,
   }
 }
 
@@ -301,6 +338,125 @@ async function notificarRechazos(
   if (perfil) await useAuthStore.getState().actualizarRol(perfil.rol)
 }
 
+/**
+ * Pushes unsynced, non-rejected `categorias` (spec 008 contracts/supabase-schema.md
+ * step 0): marks synced only without error. A batch rejected on RLS is
+ * retried row by row so one admin-demoted category can't block a sibling's
+ * sync; each row rejected for lack of permissions is marked `rechazadoEn`
+ * (kept for audit, never re-pushed). Returns the rows newly rejected.
+ */
+async function pushCategorias(client: SupabaseClient): Promise<Categoria[]> {
+  const pendientes = (await db.categorias.toArray()).filter(
+    (categoria) => !categoria.sincronizado && categoria.rechazadoEn === null,
+  )
+  if (pendientes.length === 0) return []
+
+  const { error } = await client
+    .from('categorias')
+    .upsert(pendientes.map(toCategoriaRow))
+  if (!error) {
+    await db.categorias.bulkUpdate(
+      pendientes.map((categoria) => ({
+        key: categoria.id,
+        changes: { sincronizado: true },
+      })),
+    )
+    return []
+  }
+  if (!esRechazoDePermisos(error)) return []
+
+  const rechazadas: Categoria[] = []
+  for (const categoria of pendientes) {
+    const { error: errorFila } = await client
+      .from('categorias')
+      .upsert(toCategoriaRow(categoria))
+    if (!errorFila) {
+      await db.categorias.update(categoria.id, { sincronizado: true })
+    } else if (esRechazoDePermisos(errorFila)) {
+      await db.categorias.update(categoria.id, {
+        rechazadoEn: new Date().toISOString(),
+      })
+      rechazadas.push(categoria)
+    }
+  }
+  return rechazadas
+}
+
+/**
+ * After a category push rejection (research.md R4): every local insumo
+ * whose `claveCategoria` matches a rejected row moves to "Sin categoría",
+ * unless a *formal* surviving source (a precargada or a sibling
+ * non-rejected `Categoria` row) still backs that clave. Free text on
+ * insumos is deliberately excluded from that check: every insumo being
+ * evaluated already holds the rejected name as plain text, so including
+ * texto-libre here would make the clave "resolve" via the very rows being
+ * moved and never actually move anything. Runs in one transaction, before
+ * `pushInsumos`, so the remote row converges instead of leaking the
+ * rejected name to other devices.
+ */
+async function moverASinCategoria(rechazadas: Categoria[]): Promise<void> {
+  if (rechazadas.length === 0) return
+  await db.transaction('rw', db.insumos, db.categorias, async () => {
+    const clavesRechazadas = new Set(
+      rechazadas.map((categoria) => claveCategoria(categoria.nombre)),
+    )
+    const idsRechazadas = new Set(rechazadas.map((categoria) => categoria.id))
+    const todosInsumos = await db.insumos.toArray()
+    const todasCategorias = await db.categorias.toArray()
+    const catalogoSinRechazadas = catalogoCategorias(
+      todasCategorias.filter((categoria) => !idsRechazadas.has(categoria.id)),
+      [],
+    )
+
+    for (const insumo of todosInsumos) {
+      if (!clavesRechazadas.has(claveCategoria(insumo.categoria))) continue
+      if (resolverCategoria(insumo.categoria, catalogoSinRechazadas) !== null)
+        continue
+      await db.insumos.update(insumo.id, { categoria: SIN_CATEGORIA })
+    }
+  })
+}
+
+/** One `categoria-rechazada` aviso per category, and a role refresh (mirrors `notificarRechazos`). */
+async function notificarRechazoCategorias(
+  client: SupabaseClient,
+  rechazadas: Categoria[],
+): Promise<void> {
+  for (const categoria of rechazadas) {
+    useAvisosStore.getState().agregar({
+      tipo: 'categoria-rechazada',
+      movimientoId: null,
+      loteId: null,
+      insumoNombre: categoria.nombre,
+      unidadMedida: null,
+    })
+  }
+
+  const usuario = useAuthStore.getState().usuario
+  if (!usuario) return
+  const perfil = await fetchPerfilPropio(client, usuario.id)
+  if (perfil) await useAuthStore.getState().actualizarRol(perfil.rol)
+}
+
+/**
+ * Pulls remote `categorias`, skipping ids the client already marked
+ * `rechazadoEn` locally — a resurrected pull must never un-reject a row
+ * `moverASinCategoria` already acted on.
+ */
+async function pullCategorias(client: SupabaseClient): Promise<void> {
+  const { data, error } = await client.from('categorias').select('*')
+  if (error || !data) return
+  const rechazadasLocalmente = new Set(
+    (await db.categorias.toArray())
+      .filter((categoria) => categoria.rechazadoEn !== null)
+      .map((categoria) => categoria.id),
+  )
+  const filas = (data as CategoriaRow[])
+    .filter((row) => !rechazadasLocalmente.has(row.id))
+    .map(fromCategoriaRow)
+  await db.categorias.bulkPut(filas)
+}
+
 async function pushLotes(client: SupabaseClient): Promise<void> {
   const lotes = await db.lotes.toArray()
   if (lotes.length === 0) return
@@ -376,10 +532,13 @@ async function pullMovimientos(client: SupabaseClient): Promise<string[]> {
  * `consumo` movement in this batch (FR-012, FR-014). Never throws — a
  * missing/unreachable backend simply skips the cycle (Constitution I).
  *
- * Feature 007 order for the catalog (specs/007 contracts/supabase-schema.md):
- * insumos first (so `cambios_insumo.insumo_id`'s FK is satisfied) → cambios
- * → pull cambios → pull insumos → one reprojection from the ledger, which
- * resolves concurrent edits per field on every device identically.
+ * Order for the catalog (spec 008 contracts/supabase-schema.md, extending
+ * spec 007's): categorias first — a rejection there moves local insumos to
+ * "Sin categoría" *before* they're pushed, so the remote row converges in
+ * the same cycle — then insumos (so `cambios_insumo.insumo_id`'s FK is
+ * satisfied) → cambios → pull cambios → pull insumos → pull categorias →
+ * one reprojection from the ledger, which resolves concurrent edits per
+ * field on every device identically.
  */
 export async function runSyncBatch(): Promise<void> {
   const { client, error } = getSupabaseStatus()
@@ -387,12 +546,19 @@ export async function runSyncBatch(): Promise<void> {
 
   const loteIdsTocados = new Set<string>()
 
+  const rechazadasCategorias = await pushCategorias(client)
+  await moverASinCategoria(rechazadasCategorias)
+
   await pushInsumos(client)
   const rechazados = await pushCambiosInsumo(client)
   await pullCambiosInsumo(client)
   await pullInsumos(client)
+  await pullCategorias(client)
   await reproyectarInsumos()
   if (rechazados.length > 0) await notificarRechazos(client, rechazados)
+  if (rechazadasCategorias.length > 0) {
+    await notificarRechazoCategorias(client, rechazadasCategorias)
+  }
 
   await pushLotes(client)
   await pushConfiguracionAlertas(client)

@@ -11,6 +11,7 @@ vi.mock('../../src/features/insumos/lib/consumoRapido', () => ({
 
 import {
   DURACION_AVISO_MS,
+  DURACION_MATERIAL_CREADO_MS,
   DURACION_REVERTIDO_MS,
   useAvisosStore,
   type NuevoAviso,
@@ -23,6 +24,16 @@ function aviso(n: number): NuevoAviso {
     loteId: 'lote-1',
     insumoNombre: `Insumo ${n}`,
     unidadMedida: 'caja',
+  }
+}
+
+function avisoMaterialCreado(nombre: string): NuevoAviso {
+  return {
+    tipo: 'material-creado',
+    movimientoId: null,
+    loteId: null,
+    insumoNombre: nombre,
+    unidadMedida: null,
   }
 }
 
@@ -86,5 +97,43 @@ describe('avisosStore (spec 007 FR-006/FR-009)', () => {
 
     await expect(useAvisosStore.getState().deshacer(id)).rejects.toThrow('boom')
     expect(useAvisosStore.getState().avisos[0].estado).toBe('pendiente')
+  })
+
+  it('expires a material-creado notice at 4 seconds (spec 008)', () => {
+    useAvisosStore.getState().agregar(avisoMaterialCreado('Fresa'))
+
+    vi.advanceTimersByTime(DURACION_MATERIAL_CREADO_MS - 1)
+    expect(useAvisosStore.getState().avisos).toHaveLength(1)
+    vi.advanceTimersByTime(1)
+    expect(useAvisosStore.getState().avisos).toHaveLength(0)
+  })
+
+  it('a material-creado does not evict any of 3 consumo avisos — it is discarded instead', () => {
+    for (let n = 1; n <= 3; n++) useAvisosStore.getState().agregar(aviso(n))
+
+    useAvisosStore.getState().agregar(avisoMaterialCreado('Fresa'))
+
+    const avisos = useAvisosStore.getState().avisos
+    expect(avisos.map((a) => a.insumoNombre)).toEqual([
+      'Insumo 1',
+      'Insumo 2',
+      'Insumo 3',
+    ])
+  })
+
+  it('a new consumo evicts an informative material-creado before any consumo', () => {
+    useAvisosStore.getState().agregar(aviso(1))
+    useAvisosStore.getState().agregar(aviso(2))
+    useAvisosStore.getState().agregar(avisoMaterialCreado('Fresa'))
+
+    useAvisosStore.getState().agregar(aviso(3))
+
+    const avisos = useAvisosStore.getState().avisos
+    expect(avisos.map((a) => a.insumoNombre)).toEqual([
+      'Insumo 1',
+      'Insumo 2',
+      'Insumo 3',
+    ])
+    expect(avisos.every((a) => a.tipo === 'consumo')).toBe(true)
   })
 })

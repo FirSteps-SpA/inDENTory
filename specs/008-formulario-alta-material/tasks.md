@@ -31,7 +31,7 @@ the roadmap. US3 (categoría nueva) and US4 (duplicados) extend `AltaMaterialVie
 
 **Purpose**: Shared building blocks with no dependencies.
 
-- [ ] T001 [P] Create `src/components/ui/Stepper.tsx` per contracts/ui-contracts.md (`Stepper`):
+- [X] T001 [P] Create `src/components/ui/Stepper.tsx` per contracts/ui-contracts.md (`Stepper`):
   props `{ id, label, value: number | null, onChange: (v: number | null) => void, min = 0,
   permiteDecimales, allowEmpty }`. Render a `<label htmlFor={id}>`, a `TouchButton variant="ghost"`
   `aria-label="Restar uno"` with `Minus`, a centered `<input type="number" step={permiteDecimales ?
@@ -41,7 +41,7 @@ the roadmap. US3 (categoría nueva) and US4 (duplicados) extend `AltaMaterialVie
   min = 0); "−" on `null` does nothing; "−" never goes below `min`; clearing the input yields `null`
   only when `allowEmpty`, otherwise `min`. Accept `aria-describedby`/`aria-invalid` passthrough
   props so callers can attach field errors.
-- [ ] T002 [P] In `src/features/insumos/lib/catalogo.ts`, change `UNIDADES_MEDIDA` to
+- [X] T002 [P] In `src/features/insumos/lib/catalogo.ts`, change `UNIDADES_MEDIDA` to
   `['caja', 'frasco', 'pieza', 'cartucho', 'mL', 'g'] as const`, export
   `type UnidadMedida = (typeof UNIDADES_MEDIDA)[number]` and
   `ETIQUETAS_UNIDAD: Record<UnidadMedida, string>` (`Caja, Frasco, Pieza, Cartucho, mL, g`)
@@ -59,7 +59,7 @@ the roadmap. US3 (categoría nueva) and US4 (duplicados) extend `AltaMaterialVie
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete.
 
-- [ ] T003 Extend `src/lib/db/index.ts` per data-model.md. Add `creadoPor: string | null` to
+- [X] T003 Extend `src/lib/db/index.ts` per data-model.md. Add `creadoPor: string | null` to
   `Insumo`. Add the `Categoria` interface (`id`, `nombre`, `creadoPor`, `creadoEn`, `sincronizado`,
   `rechazadoEn: string | null`) and the
   `Borrador` interface (`id: 'alta-material'`, `datos: Partial<AltaMaterialInput>`, `actualizadoEn`).
@@ -73,10 +73,10 @@ the roadmap. US3 (categoría nueva) and US4 (duplicados) extend `AltaMaterialVie
   `creadoPor: null`: `SearchPicker.tsx`'s `CrearInsumoForm` (removed later in T016),
   `tests/helpers/memoryDb.ts`, and the fixtures in `tests/integration/*.test.tsx` and
   `tests/unit/**`.
-- [ ] T004 [P] In `src/lib/sync/index.ts`, add `creado_por: string | null` to `InsumoRow`, map it in
+- [X] T004 [P] In `src/lib/sync/index.ts`, add `creado_por: string | null` to `InsumoRow`, map it in
   `toInsumoRow` (`insumo.creadoPor`) and in `fromInsumoRow` (`row.creado_por ?? null`), per
   contracts/supabase-schema.md.
-- [ ] T005 Create `src/features/insumos/lib/categorias.ts` per contracts/ui-contracts.md and
+- [X] T005 Create `src/features/insumos/lib/categorias.ts` per contracts/ui-contracts.md and
   research.md R1/R2. It holds `CATEGORIAS_PRECARGADAS = ['Cirugía', 'Restauración', 'Tratamientos
   pulpares', 'Fresas'] as const`, `SIN_CATEGORIA = 'Sin categoría'`, and
   `claveCategoria(nombre)`: trim → NFD → strip `\p{Diacritic}` → `toLocaleLowerCase('es')` →
@@ -91,7 +91,7 @@ the roadmap. US3 (categoría nueva) and US4 (duplicados) extend `AltaMaterialVie
   `categoriasEnUso(categorias, insumosActivos)` keeps only catalog entries whose clave appears in
   ≥1 active insumo. "Sin categoría" is included only if some active insumo uses it (FR-011a).
   `resolverCategoria(nombre, catalogo)` returns the canonical nombre for the clave, or `null`.
-- [ ] T006 [P] Unit tests in `tests/unit/insumos/categorias.test.ts`:
+- [X] T006 [P] Unit tests in `tests/unit/insumos/categorias.test.ts`:
   - `claveCategoria`: "  Restauración " = "restauracion"; "FRESAS" = "fresas".
   - Empty inputs → 4 precargadas + "Sin categoría" last.
   - Free-text "restauracion" merges into "Restauración".
@@ -100,14 +100,14 @@ the roadmap. US3 (categoría nueva) and US4 (duplicados) extend `AltaMaterialVie
   - Free text "sin categoria" maps to the fixed entry.
   - `categoriasEnUso` omits unused precargadas.
   - `resolverCategoria("fresas")` → "Fresas", and an unknown name → `null`.
-- [ ] T007 Extend `src/stores/inventoryStore.ts`:
+- [X] T007 Extend `src/stores/inventoryStore.ts`:
   - Add `categorias: Categoria[]` to the state with its own `liveQuery(() => db.categorias.toArray())`
     subscription, unsubscribed in the cleanup.
   - Change `searchInsumosPorCategoria` to compare `claveCategoria(insumo.categoria) ===
     claveCategoria(categoria)`.
   - Delete `categoriasDisponibles` once T008 removes its callers.
   - Update the doc comment accordingly.
-- [ ] T008 Replace `categoriasDisponibles` callers:
+- [X] T008 Replace `categoriasDisponibles` callers:
   - `src/features/insumos/components/InventarioView.tsx` and `SearchPicker.tsx` pass
     `categoriasEnUso(categorias, insumos).map(c => c.nombre)` to their chips.
   - `src/features/insumos/components/EditarInsumoForm.tsx` fills its `<select>` from
@@ -121,7 +121,7 @@ the roadmap. US3 (categoría nueva) and US4 (duplicados) extend `AltaMaterialVie
     build the catalog. Update `tests/unit/insumos/catalogo.test.ts`, including one edit that must
     succeed with a created `Categoria` row.
   - Then remove `categoriasDisponibles` (T007).
-- [ ] T009 [P] Extend `src/stores/avisosStore.ts`: `Aviso.tipo` adds `'material-creado' |
+- [X] T009 [P] Extend `src/stores/avisosStore.ts`: `Aviso.tipo` adds `'material-creado' |
   'categoria-rechazada'`; export `DURACION_MATERIAL_CREADO_MS = 4000` and make `agregar` use it for
   `material-creado` (8 s otherwise). Change the `MAX_AVISOS` overflow rule in `agregar`: when over
   the limit, evict the oldest **informative** aviso (`material-creado`/`categoria-rechazada`)
@@ -149,7 +149,7 @@ The same form replaces the inline create in Registrar's search.
 stock mínimo 5 / Guardar. It appears in the list under the Fresas chip, in state "Sin stock", and
 counts in Bajo Stock (quickstart Scenarios 1, 2, 5, 6, 10).
 
-- [ ] T010 [US1] Extend `src/features/insumos/lib/alta.ts` (created with `AltaMaterialInput` in
+- [X] T010 [US1] Extend `src/features/insumos/lib/alta.ts` (created with `AltaMaterialInput` in
   T003) with the `CampoAlta` and `ValidacionAlta` types from contracts/ui-contracts.md, and
   `validarAltaMaterial(input, insumosActivos, catalogo, hoy)`. For this story, validate these fields:
   - nombre: trim, not empty (`'Ingresa el nombre del material.'`), and `claveNombre` not equal to
@@ -160,7 +160,7 @@ counts in Bajo Stock (quickstart Scenarios 1, 2, 5, 6, 10).
   - stockMinimo via `validarStockMinimo`.
   Leave clearly marked extension points for the lote (T018) and categoría nueva (T025) rules.
   Always return `advertencias: { loteCaducado: false }` for now.
-- [ ] T011 [US1] In `src/features/insumos/lib/alta.ts` implement `darDeAltaMaterial(input)`:
+- [X] T011 [US1] In `src/features/insumos/lib/alta.ts` implement `darDeAltaMaterial(input)`:
   - Require `getUsuarioActualId()`.
   - Normalize the input: trim nombre and codigo, empty codigo → `null`, and categoria →
     `resolverCategoria` canonical name.
@@ -171,7 +171,7 @@ counts in Bajo Stock (quickstart Scenarios 1, 2, 5, 6, 10).
     `stockMinimo`, `caduca`, and null baja fields.
   - `db.borradores.delete('alta-material')`.
   - Return `{ insumo, conLoteInicial: false }`.
-- [ ] T012 [P] [US1] Unit tests in `tests/unit/insumos/alta.test.ts` (fake-indexeddb, auth store
+- [X] T012 [P] [US1] Unit tests in `tests/unit/insumos/alta.test.ts` (fake-indexeddb, auth store
   seeded like `catalogo.test.ts`):
   - Every US1 validation message.
   - Duplicate name is case-insensitive, and a dado de baja homonym is allowed.
@@ -179,7 +179,7 @@ counts in Bajo Stock (quickstart Scenarios 1, 2, 5, 6, 10).
   - `stockMinimo` decimal rejected for `caja` but accepted for `mL`.
   - Successful save writes one insumo with `creadoPor` and clears the borrador.
   - A second call with the same name throws (double-tap guard).
-- [ ] T013 [US1] Create `src/features/insumos/lib/useBorradorAlta.ts` per contracts/ui-contracts.md
+- [X] T013 [US1] Create `src/features/insumos/lib/useBorradorAlta.ts` per contracts/ui-contracts.md
   and research.md R6:
   - On mount, load `db.borradores.get('alta-material')`. If found, use its `datos` over `inicial`
     and set `restaurado: true`.
@@ -193,14 +193,14 @@ counts in Bajo Stock (quickstart Scenarios 1, 2, 5, 6, 10).
     `stockMinimo: null`, `unidadMedida: 'caja'`, `categoria: ''`, `categoriaNueva: false`, empty
     lote, `confirmarCaducado: false`.
   In `src/stores/authStore.ts` `logout`, also `await db.borradores.clear()`.
-- [ ] T014 [P] [US1] Unit tests in `tests/unit/insumos/useBorradorAlta.test.tsx`
+- [X] T014 [P] [US1] Unit tests in `tests/unit/insumos/useBorradorAlta.test.tsx`
   (`renderHook`, fake timers):
   - No row is written for an untouched form, including one opened with `inicial.nombre` set.
   - A row is written 400 ms after a change.
   - Remount restores it with `restaurado: true`, and the borrador wins over `inicial.nombre`.
   - `descartar` deletes it.
   - `authStore.logout()` clears it.
-- [ ] T015 [US1] Create `src/features/insumos/components/AltaMaterialView.tsx` (props per
+- [X] T015 [US1] Create `src/features/insumos/components/AltaMaterialView.tsx` (props per
   contracts/ui-contracts.md):
   - Layout: full-screen `fixed inset-0 z-40 bg-bg` overlay with a header ("Nuevo Material" + ghost
     `Cancelar`), a scrollable `<form>` with bottom padding, and a fixed bottom bar holding the
@@ -226,7 +226,7 @@ counts in Bajo Stock (quickstart Scenarios 1, 2, 5, 6, 10).
     path clears the borrador, so no orphan draft triggers "Recuperamos tu alta sin terminar"
     later (FR-024).
   - Never mounts `ScanButton` in this story. No camera.
-- [ ] T016 [US1] Wire the entry points.
+- [X] T016 [US1] Wire the entry points.
   - `src/features/insumos/components/InventarioView.tsx`:
     - Add a primary `TouchButton` "+ Material" (with the `Plus` icon) above `InsumoFiltros`, and an
       `alta` boolean state.
@@ -246,7 +246,7 @@ counts in Bajo Stock (quickstart Scenarios 1, 2, 5, 6, 10).
     `mensajeExito` to `Lote de "${insumo.nombre}" registrado.` and keep `insumo` null. Otherwise
     select it as today.
   - `ConsumoForm.tsx` keeps calling `seleccionarInsumo(insumo)` and ignores `opciones`.
-- [ ] T017 [US1] Integration tests in `tests/integration/alta-material.test.tsx`. Render
+- [X] T017 [US1] Integration tests in `tests/integration/alta-material.test.tsx`. Render
   `InventarioView` with the seeded auth/inventory stores, as `tests/integration/inventario.test.tsx`
   does, and cover:
   - `+ Material` focuses the name input and no camera is requested (`getUserMedia` spy not called).
@@ -278,7 +278,7 @@ explicit confirmation.
 proveedor / vencimiento next year. The card shows 10, the detail shows the lote, and the history
 shows one ingreso by the user. A past date requires confirmation (quickstart Scenarios 3, 4).
 
-- [ ] T018 [US2] Extend `validarAltaMaterial` in `src/features/insumos/lib/alta.ts`:
+- [X] T018 [US2] Extend `validarAltaMaterial` in `src/features/insumos/lib/alta.ts`:
   - When `stockInicial > 0`, run `validateQuantity(stockInicial, unidadMedida)` (error on
     `stockInicial`).
   - `lote.numeroLote` and `lote.proveedor` are required, trimmed (`'Ingresa el número de lote.'`,
@@ -288,7 +288,7 @@ shows one ingreso by the user. A past date requires confirmation (quickstart Sce
     equal to today is not expired).
   - When `stockInicial === 0`, ignore every lote field. When `!caduca`, ignore `fechaCaducidad`.
   - Reject negative `stockInicial`.
-- [ ] T019 [US2] Extend `darDeAltaMaterial` in `src/features/insumos/lib/alta.ts`:
+- [X] T019 [US2] Extend `darDeAltaMaterial` in `src/features/insumos/lib/alta.ts`:
   - Throw `'Confirma el ingreso de un lote ya caducado.'` when `loteCaducado &&
     !confirmarCaducado`.
   - When `stockInicial > 0`, add inside the same transaction a `Lote` with:
@@ -298,7 +298,7 @@ shows one ingreso by the user. A past date requires confirmation (quickstart Sce
     - `estado: 'activo'`, `creadoEn`.
   - Then `await crearMovimiento({ tipo: 'ingreso', loteId, cantidad: stockInicial })`.
   - Return `conLoteInicial: true`.
-- [ ] T020 [P] [US2] Extend `tests/unit/insumos/alta.test.ts`:
+- [X] T020 [P] [US2] Extend `tests/unit/insumos/alta.test.ts`:
   - Each lote validation message.
   - No lote fields are required at stock 0.
   - No date is required when `!caduca`, and a typed date is discarded.
@@ -310,13 +310,13 @@ shows one ingreso by the user. A past date requires confirmation (quickstart Sce
     `runSyncBatch()` doesn't throw and keeps the rows unchanged.
   - Atomicity: `vi.spyOn(db.movimientos, 'add')` rejecting → 0 insumos, 0 lotes and the borrador
     still present (SC-003).
-- [ ] T021 [P] [US2] Create `src/features/insumos/components/ConfirmarLoteCaducadoDialog.tsx`:
+- [X] T021 [P] [US2] Create `src/features/insumos/components/ConfirmarLoteCaducadoDialog.tsx`:
   - A `BottomSheet` titled "Este lote ingresaría ya caducado".
   - Body: the date formatted `dd/mm/aaaa` and "Aparecerá de inmediato en Alertas."
   - Buttons: `Guardar igual` (→ `onConfirmar`) and ghost `Revisar fecha` (→ `onCancelar`).
   - Props `{ fechaCaducidad, onConfirmar, onCancelar }`.
   - Modeled on `ConfirmarBajaDialog.tsx`.
-- [ ] T022 [US2] Extend `src/features/insumos/components/AltaMaterialView.tsx`:
+- [X] T022 [US2] Extend `src/features/insumos/components/AltaMaterialView.tsx`:
   - Add a "Stock inicial" `Stepper` (`min 0`, not empty, `permiteDecimales` from the unit) after
     Stock mínimo.
   - When `stockInicial > 0`, render a "Primer lote" section: "Número de lote", "Proveedor", and
@@ -326,7 +326,7 @@ shows one ingreso by the user. A past date requires confirmation (quickstart Sce
   - On submit, when `advertencias.loteCaducado`, open `ConfirmarLoteCaducadoDialog`. Confirming
     re-submits with `confirmarCaducado: true`. "Revisar fecha" focuses the date input.
   - Turning the caducidad switch off clears `lote.fechaCaducidad` in the borrador.
-- [ ] T023 [US2] Extend `tests/integration/alta-material.test.tsx`:
+- [X] T023 [US2] Extend `tests/integration/alta-material.test.tsx`:
   - The lote section is hidden at 0 and shown after "Sumar uno".
   - The button label changes.
   - The date field is hidden when the switch is off.
@@ -351,7 +351,7 @@ rejection moves its materials to "Sin categoría".
 Inventario and an option in alta/edición. "FRESAS" selects the existing one. Cancelling leaves no
 category. As `personal` there is no create option (quickstart Scenarios 8, 9-rechazo).
 
-- [ ] T024 [US3] Extend `src/features/insumos/components/AltaMaterialView.tsx`:
+- [X] T024 [US3] Extend `src/features/insumos/components/AltaMaterialView.tsx`:
   - When `usuario.rol === 'administrador'`, append the option `+ Crear nueva categoría`
     (sentinel value) to the `<select>`.
   - Choosing it swaps the select for an inline text input ("Nombre de la nueva categoría",
@@ -361,7 +361,7 @@ category. As `personal` there is no create option (quickstart Scenarios 8, 9-rec
     name with `categoriaNueva: true` and shows it as the selected value, marked "(nueva)".
   - The pending new category lives only in the borrador.
   - Non-admins never see the option. "Sin categoría" is always there.
-- [ ] T025 [US3] Extend `src/features/insumos/lib/alta.ts`:
+- [X] T025 [US3] Extend `src/features/insumos/lib/alta.ts`:
   - In `validarAltaMaterial`, when `categoriaNueva`: trimmed name 1–40 chars, and its clave must
     not be the "Sin categoría" clave (`'Ese nombre está reservado.'`).
   - In `darDeAltaMaterial`, when `categoriaNueva`:
@@ -371,13 +371,13 @@ category. As `personal` there is no create option (quickstart Scenarios 8, 9-rec
       row arrived), use the canonical name and write no row.
     - Otherwise `db.categorias.add({ id, nombre, creadoPor, creadoEn, sincronizado: false,
       rechazadoEn: null })` before adding the insumo.
-- [ ] T026 [P] [US3] Extend `tests/unit/insumos/alta.test.ts`:
+- [X] T026 [P] [US3] Extend `tests/unit/insumos/alta.test.ts`:
   - An admin creates "Ortodoncia": 1 categoria row + insumo with that category.
   - "FRESAS" as new → no row, category "Fresas".
   - `personal` with `categoriaNueva` throws and writes nothing.
   - The reserved-name error.
   - A failed save (movimiento spy) leaves no categoria row.
-- [ ] T027 [US3] Extend `src/lib/sync/index.ts` per contracts/supabase-schema.md:
+- [X] T027 [US3] Extend `src/lib/sync/index.ts` per contracts/supabase-schema.md:
   - Add `CategoriaRow` with `toCategoriaRow`/`fromCategoriaRow`.
   - `pushCategorias(client): Promise<Categoria[]>` upserts unsynced and non-rejected rows and marks
     them `sincronizado` only when there is no error. On `esRechazoDePermisos`, retry row by row.
@@ -392,7 +392,7 @@ category. As `personal` there is no create option (quickstart Scenarios 8, 9-rec
     `fetchPerfilPropio` + `actualizarRol`, as `notificarRechazos` does. Call `pullCategorias` right
     after `pullInsumos`.
   - Never throw.
-- [ ] T028 [P] [US3] Unit tests in `tests/unit/sync-categorias.test.ts`, mocking the Supabase client
+- [X] T028 [P] [US3] Unit tests in `tests/unit/sync-categorias.test.ts`, mocking the Supabase client
   the same way `tests/unit/sync-cambios-insumo.test.ts` does:
   - An unsynced row is pushed and marked synced.
   - An RLS error on the batch falls back to row by row, and only the failing row gets
@@ -403,7 +403,7 @@ category. As `personal` there is no create option (quickstart Scenarios 8, 9-rec
   - One aviso per category, and the role is refreshed.
   - A network error marks nothing.
   - Pull merges without resurrecting a rejected row.
-- [ ] T029 [US3] Extend `tests/integration/alta-material.test.tsx`:
+- [X] T029 [US3] Extend `tests/integration/alta-material.test.tsx`:
   - As admin, create "ortodoncia" → an "Ortodoncia" chip appears in `InventarioView`, and
     `EditarInsumoForm`'s select lists it.
   - "FRESAS" → hint and no duplicate option.
@@ -425,26 +425,26 @@ duplicates.
 Code `7790001` warns "Este código ya corresponde a «Composite A2»". Two same-name materials → the
 newer one shows "Posible duplicado" to admins only (quickstart Scenarios 7, 9).
 
-- [ ] T030 [US4] In `src/features/insumos/lib/alta.ts`, implement:
+- [X] T030 [US4] In `src/features/insumos/lib/alta.ts`, implement:
   - `sugerirMateriales(insumosActivos, texto, limite = 5)`: `[]` below 2 trimmed characters.
     Otherwise return active insumos whose accent-folded, lowercased name contains the
     accent-folded query, sorted by name. Reuse the folding helper from `categorias.ts`, exported as
     `plegar(texto)`.
   - `posiblesDuplicados(insumosActivos)`: group by `claveNombre` and return the ids of all but the
     min `(creadoEn, id)` of each group of size ≥ 2 (research.md R9).
-- [ ] T031 [P] [US4] Extend `tests/unit/insumos/alta.test.ts`:
+- [X] T031 [P] [US4] Extend `tests/unit/insumos/alta.test.ts`:
   - 1 character → none.
   - "resina" matches "Resína Z350".
   - Limit 5.
   - Dados de baja are excluded by the caller's input.
   - `posiblesDuplicados`: a pair flags only the newer; a creadoEn tie breaks by id; a triple flags
     two; a renamed item clears the flag.
-- [ ] T032 [P] [US4] Extend `src/features/insumos/components/ScanButton.tsx` with the optional prop
+- [X] T032 [P] [US4] Extend `src/features/insumos/components/ScanButton.tsx` with the optional prop
   `onCodigo?: (codigo: string) => void`. When provided, a `'match'` result calls
   `onCodigo(resultado.codigo)` and skips the insumo/lote lookup. `'unavailable'`/`'no-match'`
   messages are unchanged. Camera still only starts in `iniciarEscaneo`. Existing callers are
   unaffected.
-- [ ] T033 [US4] Extend `src/features/insumos/components/AltaMaterialView.tsx`:
+- [X] T033 [US4] Extend `src/features/insumos/components/AltaMaterialView.tsx`:
   - Under the name input, render `sugerirMateriales(insumos, datos.nombre)` as a list headed "Ya
     existen materiales parecidos". Each row is a `touch-target` button "«Nombre» · Categoría —
     Ver" → `onAbrirExistente(insumo)`.
@@ -453,12 +453,12 @@ newer one shows "Posible duplicado" to admins only (quickstart Scenarios 7, 9).
   - On scan result and on the code input's `onBlur`, look up `findInsumoPorCodigo(insumos,
     codigo.trim())`. On a match, show a `warning-30` Card "Este código ya corresponde a «X»" with a
     `TouchButton` `Abrir «X»` → `onAbrirExistente`. It doesn't block saving.
-- [ ] T034 [US4] In `src/features/insumos/components/InsumoCard.tsx`, add the prop
+- [X] T034 [US4] In `src/features/insumos/components/InsumoCard.tsx`, add the prop
   `posibleDuplicado?: boolean`: when true, render `<Badge variant="warning-30">Posible
   duplicado</Badge>` next to the state badge. In `src/features/insumos/components/InventarioView.tsx`,
   compute `const duplicados = rol === 'administrador' ? posiblesDuplicados(insumos) : new Set()`
   once per render and pass `posibleDuplicado={duplicados.has(id)}`.
-- [ ] T035 [US4] Extend `tests/integration/alta-material.test.tsx`:
+- [X] T035 [US4] Extend `tests/integration/alta-material.test.tsx`:
   - Typing "compo" shows the suggestion, and tapping it opens `InsumoDetalle` with the borrador
     kept (reopening `+ Material` restores it).
   - Typing the existing code and blurring shows the warning.
@@ -473,21 +473,21 @@ newer one shows "Posible duplicado" to admins only (quickstart Scenarios 7, 9).
 
 ## Phase 7: Polish & Cross-Cutting Concerns
 
-- [ ] T036 [P] Touch-target audit (FR-025, Principle III): verify every new control in
+- [X] T036 [P] Touch-target audit (FR-025, Principle III): verify every new control in
   `AltaMaterialView.tsx`, `Stepper.tsx` and `ConfirmarLoteCaducadoDialog.tsx` is ≥48×48px:
   unit grid buttons, switch row, select, suggestion rows, `Usar`/`Volver a la lista`, and the
   fixed bottom bar clearing `BottomNav`. Add a test in `tests/integration/alta-material.test.tsx`
   asserting the `touch-target` class/`TouchButton` usage on those controls.
-- [ ] T037 [P] Grep `src/` for leftover `categoriasDisponibles`, `CrearInsumoForm` and the old
+- [X] T037 [P] Grep `src/` for leftover `categoriasDisponibles`, `CrearInsumoForm` and the old
   `['pieza', 'caja', 'mL', 'g']` list and remove them. Update the doc comments of
   `SearchPicker.tsx`, `MasView.tsx` and `inventoryStore.ts` to mention spec 008.
-- [ ] T038 Run `npm run lint && npm run build && npm test` and fix any failure.
+- [X] T038 Run `npm run lint && npm run build && npm test` and fix any failure.
 - [ ] T039 Apply the SQL of `specs/008-formulario-alta-material/contracts/supabase-schema.md` to the
   Supabase project: `insumos.creado_por`, the `categorias` table and its RLS policies. Then run
   quickstart Scenario 9 with two browsers.
 - [ ] T040 Run `specs/008-formulario-alta-material/quickstart.md` Scenarios 1–11 against
   `npm run dev` (skill `run-indentory`), at 360px width, including offline via DevTools.
-- [ ] T041 Prepare the PR notes. Declare the known exception from plan.md's Post-Phase 1
+- [X] T041 Prepare the PR notes. Declare the known exception from plan.md's Post-Phase 1
   re-check: a rejected category rewrites `Insumo.categoria` directly, outside `CambioInsumo`, and
   `insumos` still has no RLS (deferred to spec 010). Confirm the Constitution Development
   Workflow items: no auto camera, the minimum touch sizes, and Dexie-first writes.

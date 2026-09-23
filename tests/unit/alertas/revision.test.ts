@@ -29,6 +29,7 @@ function makeInsumo(overrides: Partial<Insumo>): Insumo {
     stockMinimo: null,
     dadoDeBajaEn: null,
     dadoDeBajaPor: null,
+    creadoPor: null,
     ...overrides,
   }
 }

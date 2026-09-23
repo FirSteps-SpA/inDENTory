@@ -37,6 +37,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
   logout: async () => {
     await db.usuarioActual.clear()
+    await db.borradores.clear()
     set({ usuario: null, isReady: true })
   },
   actualizarRol: async (rol) => {
