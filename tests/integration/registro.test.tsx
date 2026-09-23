@@ -38,6 +38,8 @@ const insumoExistente: Insumo = {
   codigoFabricante: null,
   creadoEn: new Date().toISOString(),
   stockMinimo: null,
+  dadoDeBajaEn: null,
+  dadoDeBajaPor: null,
 }
 
 const insumoNoCaduca: Insumo = {
@@ -50,6 +52,8 @@ const insumoNoCaduca: Insumo = {
   codigoFabricante: null,
   creadoEn: new Date().toISOString(),
   stockMinimo: null,
+  dadoDeBajaEn: null,
+  dadoDeBajaPor: null,
 }
 
 afterEach(() => {

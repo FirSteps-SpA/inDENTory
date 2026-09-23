@@ -28,6 +28,43 @@ export interface Insumo {
   creadoEn: string
   /** Feature 004 (FR-001) — optional; `null`/unset never generates a stock-bajo alert (FR-004). */
   stockMinimo: number | null
+  /**
+   * Feature 007 (FR-018) — baja lógica. `null` = activo. Projected from the
+   * earliest `CambioInsumo` with `campo: 'baja'` (data-model.md), never
+   * written directly.
+   */
+  dadoDeBajaEn: string | null
+  dadoDeBajaPor: string | null
+}
+
+/** Campos de `Insumo` que un administrador puede editar (feature 007 FR-013). */
+export type CampoEditableInsumo =
+  | 'nombre'
+  | 'categoria'
+  | 'unidadMedida'
+  | 'stockMinimo'
+  | 'codigoFabricante'
+  | 'caduca'
+
+/**
+ * Feature 007 data-model.md — CambioInsumo. Append-only per-field ledger:
+ * one row per field changed by an edit (or one `'baja'` row), so concurrent
+ * edits resolve per field (FR-021a) and every overwritten value stays
+ * auditable. The `Insumo` row is a projection of this ledger
+ * (`proyectarInsumo`). Only the local `sincronizado`/`rechazadoEn` flags are
+ * ever updated after creation.
+ */
+export interface CambioInsumo {
+  id: string
+  insumoId: string
+  campo: CampoEditableInsumo | 'baja'
+  valorAnterior: string | number | boolean | null
+  valorNuevo: string | number | boolean | null
+  usuarioId: string
+  creadoEn: string
+  sincronizado: boolean
+  /** Local-only: set when the server rejected it for lack of permissions (FR-021b). */
+  rechazadoEn: string | null
 }
 
 /** Feature 002 data-model.md — Lote. */
@@ -77,6 +114,7 @@ export const db = new Dexie('inDENToryDB') as Dexie & {
   lotes: EntityTable<Lote, 'id'>
   movimientos: EntityTable<Movimiento, 'id'>
   configuracionAlertas: EntityTable<ConfiguracionAlertas, 'id'>
+  cambiosInsumo: EntityTable<CambioInsumo, 'id'>
 }
 
 db.version(1).stores({
@@ -97,5 +135,22 @@ db.version(2).stores({
 db.version(3).stores({
   configuracionAlertas: 'id',
 })
+
+// version(4): feature 007 (data-model.md) — new append-only `cambiosInsumo`
+// ledger; existing insumos get the baja fields as `null` (activo). No new
+// index on insumos: the activos filter runs in memory (≤300 rows).
+db.version(4)
+  .stores({
+    cambiosInsumo: 'id, insumoId, campo, creadoEn, sincronizado',
+  })
+  .upgrade((tx) =>
+    tx
+      .table('insumos')
+      .toCollection()
+      .modify((insumo: Partial<Insumo>) => {
+        insumo.dadoDeBajaEn ??= null
+        insumo.dadoDeBajaPor ??= null
+      }),
+  )
 
 export type { EntityTable }

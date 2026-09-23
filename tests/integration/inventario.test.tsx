@@ -24,6 +24,8 @@ function makeInsumo(overrides: Partial<Insumo>): Insumo {
     codigoFabricante: null,
     creadoEn: new Date().toISOString(),
     stockMinimo: null,
+    dadoDeBajaEn: null,
+    dadoDeBajaPor: null,
     ...overrides,
   }
 }
@@ -73,6 +75,8 @@ const insumoBajoStock = makeInsumo({
   id: 'bajo-stock',
   nombre: 'Insumo Bajo Stock',
   stockMinimo: 20,
+  dadoDeBajaEn: null,
+  dadoDeBajaPor: null,
 })
 const loteBajoStock = makeLote({ id: 'lote-bajo-stock', insumoId: 'bajo-stock' })
 

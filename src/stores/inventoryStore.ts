@@ -1,6 +1,12 @@
 import { create } from 'zustand'
 import { liveQuery } from 'dexie'
-import { db, type Insumo, type Lote, type Movimiento } from '../lib/db'
+import {
+  db,
+  type CambioInsumo,
+  type Insumo,
+  type Lote,
+  type Movimiento,
+} from '../lib/db'
 import type { Estado, EstadoInsumo } from '../features/insumos/lib/estado'
 
 /**
@@ -10,11 +16,18 @@ import type { Estado, EstadoInsumo } from '../features/insumos/lib/estado'
  * search and FEFO/scan lookups (research.md), and by feature 004's alert
  * calculators, which is why `movimientos` is also subscribed here rather
  * than in a second store (research.md's "extend, don't duplicate" decision).
+ *
+ * `insumos` holds only **activos** (feature 007 FR-020, research.md R10):
+ * insumos dados de baja are filtered here, once, so every consumer (listado,
+ * alertas, SearchPicker, validación de nombres) excludes them without code
+ * of its own. Their lotes stay in `lotes`, but every alert calculator skips
+ * lotes whose insumo isn't in the array.
  */
 interface InventoryState {
   insumos: Insumo[]
   lotes: Lote[]
   movimientos: Movimiento[]
+  cambiosInsumo: CambioInsumo[]
   isReady: boolean
   subscribe: () => () => void
 }
@@ -23,20 +36,27 @@ export const useInventoryStore = create<InventoryState>((set) => ({
   insumos: [],
   lotes: [],
   movimientos: [],
+  cambiosInsumo: [],
   isReady: false,
   subscribe: () => {
     const insumosSub = liveQuery(() => db.insumos.toArray()).subscribe({
-      next: (insumos) => set({ insumos, isReady: true }),
+      next: (insumos) =>
+        set({
+          insumos: insumos.filter((insumo) => !insumo.dadoDeBajaEn),
+          isReady: true,
+        }),
     })
     const lotesSub = liveQuery(() => db.lotes.toArray()).subscribe({
       next: (lotes) => set({ lotes, isReady: true }),
     })
-    const movimientosSub = liveQuery(() => db.movimientos.toArray()).subscribe(
-      {
-        next: (movimientos) => set({ movimientos, isReady: true }),
-      },
-    )
+    const movimientosSub = liveQuery(() => db.movimientos.toArray()).subscribe({
+      next: (movimientos) => set({ movimientos, isReady: true }),
+    })
+    const cambiosSub = liveQuery(() => db.cambiosInsumo.toArray()).subscribe({
+      next: (cambiosInsumo) => set({ cambiosInsumo }),
+    })
     return () => {
+      cambiosSub.unsubscribe()
       insumosSub.unsubscribe()
       lotesSub.unsubscribe()
       movimientosSub.unsubscribe()

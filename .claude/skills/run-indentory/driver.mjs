@@ -143,6 +143,8 @@ async function runCommand(line) {
                 codigoFabricante: null,
                 creadoEn: new Date().toISOString(),
                 stockMinimo: 10,
+                dadoDeBajaEn: null,
+                dadoDeBajaPor: null,
               })
               tx.oncomplete = () => resolve(undefined)
               tx.onerror = () => reject(tx.error)
@@ -152,6 +154,59 @@ async function runCommand(line) {
         { id, nombre },
       )
       console.log(`ok: seeded insumo ${id} (${nombre})`)
+      break
+    }
+
+    case 'seed-lote': {
+      // seed-lote <insumoId> <loteId> <diasHastaVencer|none> <cantidad>
+      const [insumoId, loteId, dias, cantidad] = rest
+      if (!insumoId || !loteId || !dias || !cantidad) {
+        console.log('error: seed-lote <insumoId> <loteId> <diasHastaVencer|none> <cantidad>')
+        break
+      }
+      await page.evaluate(
+        ({ insumoId, loteId, dias, cantidad }) =>
+          new Promise((resolve, reject) => {
+            let fechaCaducidad = null
+            if (dias !== 'none') {
+              const hoy = new Date()
+              const d = new Date(Date.UTC(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()))
+              d.setUTCDate(d.getUTCDate() + Number(dias))
+              fechaCaducidad = d.toISOString().slice(0, 10)
+            }
+            const req = indexedDB.open('inDENToryDB')
+            req.onsuccess = () => {
+              const db = req.result
+              const tx = db.transaction(['lotes', 'movimientos'], 'readwrite')
+              const ahora = new Date().toISOString()
+              tx.objectStore('lotes').put({
+                id: loteId,
+                insumoId,
+                numeroLote: loteId.toUpperCase(),
+                proveedor: 'Proveedor Demo',
+                fechaCaducidad,
+                codigoFabricante: null,
+                estado: 'activo',
+                creadoEn: ahora,
+              })
+              tx.objectStore('movimientos').put({
+                id: `ingreso-${loteId}`,
+                tipo: 'ingreso',
+                loteId,
+                cantidad: Number(cantidad),
+                usuarioId: 'driver-seed-user',
+                movimientoOrigenId: null,
+                creadoEn: ahora,
+                sincronizado: true,
+              })
+              tx.oncomplete = () => resolve(undefined)
+              tx.onerror = () => reject(tx.error)
+            }
+            req.onerror = () => reject(req.error)
+          }),
+        { insumoId, loteId, dias, cantidad },
+      )
+      console.log(`ok: seeded lote ${loteId} for ${insumoId} (${cantidad} u.)`)
       break
     }
 

@@ -58,6 +58,10 @@ se soporta una instancia local autoalojada vía Docker.
    `configuracion_alertas` y su política RLS definidas en
    [`specs/004-alertas-caducidad-stock/contracts/supabase-schema.md`](specs/004-alertas-caducidad-stock/contracts/supabase-schema.md),
    necesarias para la sincronización de las alertas de caducidad y stock mínimo.
+7. En el mismo SQL Editor, ejecuta las columnas de baja lógica de `insumos`, la tabla
+   `cambios_insumo` y su política RLS definidas en
+   [`specs/007-acciones-rapidas-consumo-edicion/contracts/supabase-schema.md`](specs/007-acciones-rapidas-consumo-edicion/contracts/supabase-schema.md),
+   necesarias para sincronizar la edición y la baja de insumos entre dispositivos.
 
 ### Credenciales — nunca las subas al repositorio
 

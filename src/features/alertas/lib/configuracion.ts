@@ -1,5 +1,6 @@
 import { db } from '../../../lib/db'
 import { permiteDecimales } from '../../insumos/lib/quantity'
+import { editarInsumo } from '../../insumos/lib/catalogo'
 
 export interface StockMinimoValidation {
   valid: boolean
@@ -29,9 +30,10 @@ export function validateStockMinimo(
 }
 
 /**
- * Sets (or clears, with `null`) an insumo's stock mínimo (FR-001). Only
- * callable from an administrador-gated UI (`AlertasView`) — this function
- * itself performs no role check (research.md's client-side gating decision).
+ * Sets (or clears, with `null`) an insumo's stock mínimo (FR-001). Since
+ * feature 007 the `Insumo` row is a projection of the `CambioInsumo` ledger,
+ * so this goes through `editarInsumo` (admin-only, recorded per field) —
+ * writing the row directly would be undone by the next reprojection.
  */
 export async function actualizarStockMinimo(
   insumoId: string,
@@ -47,7 +49,7 @@ export async function actualizarStockMinimo(
       throw new Error(validation.error)
     }
   }
-  await db.insumos.update(insumoId, { stockMinimo })
+  await editarInsumo(insumoId, { stockMinimo })
 }
 
 /**

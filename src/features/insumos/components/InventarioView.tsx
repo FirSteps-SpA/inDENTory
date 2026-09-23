@@ -7,15 +7,36 @@ import {
   categoriasDisponibles,
 } from '../../../stores/inventoryStore'
 import { useAlertasStore } from '../../../stores/alertasStore'
+import { useAuthStore } from '../../../stores/authStore'
 import { computeInsumosStockBajo } from '../../alertas/lib/stockBajo'
 import { computeAlertasCaducidad } from '../../alertas/lib/caducidad'
 import { computeEstadoInsumo, type Estado } from '../lib/estado'
+import {
+  consumirUno,
+  lotesConStockDeInsumo,
+  selectLoteConsumoRapido,
+} from '../lib/consumoRapido'
+import { darDeBajaInsumo } from '../lib/catalogo'
 import { ResumenAlertasBanner } from './ResumenAlertasBanner'
 import { InsumoFiltros } from './InsumoFiltros'
 import { InsumoCard } from './InsumoCard'
 import { InsumoDetalle } from './InsumoDetalle'
+import { InsumoAccionesMenu } from './InsumoAccionesMenu'
+import { ConsumoForm } from './ConsumoForm'
+import { EditarInsumoForm } from './EditarInsumoForm'
+import { ConfirmarBajaDialog } from './ConfirmarBajaDialog'
+import { BottomSheet } from '../../../components/ui/BottomSheet'
 import { Card } from '../../../components/ui/Card'
 import { TouchButton } from '../../../components/ui/TouchButton'
+
+type Overlay = {
+  tipo: 'menu' | 'consumir' | 'editar' | 'baja'
+  insumoId: string
+} | null
+
+function mensajeDeError(error: unknown, fallback: string): string {
+  return error instanceof Error ? error.message : fallback
+}
 
 /**
  * Pantalla principal por defecto (spec 006 FR-002): resumen de alertas +
@@ -23,12 +44,18 @@ import { TouchButton } from '../../../components/ui/TouchButton'
  * estado de filtros/selección (research.md) — el detalle (User Story 3) se
  * renderiza condicionalmente sin desmontar este árbol, para que
  * texto/categoria/estado sobrevivan a abrir y cerrar el detalle (FR-011).
+ *
+ * Spec 007: cada tarjeta ofrece "Consumir 1" y un menú de opciones; los
+ * paneles (menú, consumir otra cantidad, editar, baja) viven en `overlay`,
+ * que nunca toca los filtros (FR-017). Si el insumo de un panel o del
+ * detalle deja de estar activo (baja local o sincronizada), se cierra.
  */
 export function InventarioView() {
   const insumos = useInventoryStore((s) => s.insumos)
   const lotes = useInventoryStore((s) => s.lotes)
   const movimientos = useInventoryStore((s) => s.movimientos)
   const nivelesAvisoDias = useAlertasStore((s) => s.nivelesAvisoDias)
+  const rol = useAuthStore((s) => s.usuario?.rol)
 
   const [texto, setTexto] = useState('')
   const [categoria, setCategoria] = useState('')
@@ -36,6 +63,9 @@ export function InventarioView() {
   const [insumoSeleccionadoId, setInsumoSeleccionadoId] = useState<
     string | null
   >(null)
+  const [overlay, setOverlay] = useState<Overlay>(null)
+  const [errorAccion, setErrorAccion] = useState<string | null>(null)
+  const [bajaPendiente, setBajaPendiente] = useState(false)
 
   const totalCaducidad = computeAlertasCaducidad(
     insumos,
@@ -65,12 +95,50 @@ export function InventarioView() {
     (e) => idsTexto.has(e.insumo.id) && idsCategoria.has(e.insumo.id),
   )
 
-  const hayFiltrosActivos = texto.trim() !== '' || categoria !== '' || estado.length > 0
+  const hayFiltrosActivos =
+    texto.trim() !== '' || categoria !== '' || estado.length > 0
+
+  // Derived, not an effect: a detail/panel whose insumo is no longer active
+  // (dado de baja here or via sync) simply stops rendering (spec Edge Cases).
+  const insumoActivo = (id: string | null) =>
+    id ? (insumos.find((insumo) => insumo.id === id) ?? null) : null
+  const insumoDetalle = insumoActivo(insumoSeleccionadoId)
+  const insumoOverlay = overlay ? insumoActivo(overlay.insumoId) : null
 
   function limpiarFiltros() {
     setTexto('')
     setCategoria('')
     setEstado([])
+  }
+
+  function cerrarOverlay() {
+    setOverlay(null)
+    setErrorAccion(null)
+  }
+
+  async function handleConsumirUno(insumoId: string) {
+    const insumo = insumoActivo(insumoId)
+    if (!insumo) return
+    setErrorAccion(null)
+    try {
+      await consumirUno(insumo)
+    } catch (error) {
+      setErrorAccion(mensajeDeError(error, 'No se pudo registrar el consumo.'))
+    }
+  }
+
+  async function handleConfirmarBaja(insumoId: string) {
+    setBajaPendiente(true)
+    setErrorAccion(null)
+    try {
+      await darDeBajaInsumo(insumoId)
+      if (insumoSeleccionadoId === insumoId) setInsumoSeleccionadoId(null)
+      setOverlay(null)
+    } catch (error) {
+      setErrorAccion(mensajeDeError(error, 'No se pudo eliminar el insumo.'))
+    } finally {
+      setBajaPendiente(false)
+    }
   }
 
   return (
@@ -93,12 +161,29 @@ export function InventarioView() {
         onSelectDesdeEscaneo={(insumo) => setInsumoSeleccionadoId(insumo.id)}
       />
 
+      {errorAccion && !overlay && (
+        <Card className="bg-danger-bg px-3.5 py-2.5">
+          <p role="alert" className="text-sm text-danger">
+            {errorAccion}
+          </p>
+        </Card>
+      )}
+
       <ul className="flex flex-col gap-2">
         {resultados.map((estadoInsumo) => (
           <li key={estadoInsumo.insumo.id}>
             <InsumoCard
               estadoInsumo={estadoInsumo}
+              disponibilidad={selectLoteConsumoRapido(
+                lotesConStockDeInsumo(
+                  estadoInsumo.insumo.id,
+                  lotes,
+                  movimientos,
+                ),
+              )}
               onOpen={setInsumoSeleccionadoId}
+              onConsumirUno={(id) => void handleConsumirUno(id)}
+              onAbrirMenu={(id) => setOverlay({ tipo: 'menu', insumoId: id })}
             />
           </li>
         ))}
@@ -118,28 +203,79 @@ export function InventarioView() {
             Ningún insumo coincide con la búsqueda o los filtros.
           </p>
           {hayFiltrosActivos && (
-            <TouchButton type="button" variant="secondary" onClick={limpiarFiltros}>
+            <TouchButton
+              type="button"
+              variant="secondary"
+              onClick={limpiarFiltros}
+            >
               Limpiar filtros
             </TouchButton>
           )}
         </Card>
       )}
 
-      {insumoSeleccionadoId &&
-        (() => {
-          const insumoSeleccionado = insumos.find(
-            (insumo) => insumo.id === insumoSeleccionadoId,
-          )
-          if (!insumoSeleccionado) return null
-          return (
-            <InsumoDetalle
-              insumo={insumoSeleccionado}
-              lotes={lotes.filter((lote) => lote.insumoId === insumoSeleccionadoId)}
-              movimientos={movimientos}
-              onClose={() => setInsumoSeleccionadoId(null)}
-            />
-          )
-        })()}
+      {insumoDetalle && (
+        <InsumoDetalle
+          insumo={insumoDetalle}
+          lotes={lotes.filter((lote) => lote.insumoId === insumoDetalle.id)}
+          movimientos={movimientos}
+          onClose={() => setInsumoSeleccionadoId(null)}
+        />
+      )}
+
+      {overlay?.tipo === 'menu' && insumoOverlay && (
+        <InsumoAccionesMenu
+          insumo={insumoOverlay}
+          rol={rol}
+          onVerDetalle={() => {
+            setInsumoSeleccionadoId(insumoOverlay.id)
+            cerrarOverlay()
+          }}
+          onConsumirOtraCantidad={() =>
+            setOverlay({ tipo: 'consumir', insumoId: insumoOverlay.id })
+          }
+          onEditar={() =>
+            setOverlay({ tipo: 'editar', insumoId: insumoOverlay.id })
+          }
+          onEliminar={() =>
+            setOverlay({ tipo: 'baja', insumoId: insumoOverlay.id })
+          }
+          onClose={cerrarOverlay}
+        />
+      )}
+
+      {overlay?.tipo === 'consumir' && insumoOverlay && (
+        <BottomSheet
+          titulo={`Consumir ${insumoOverlay.nombre}`}
+          onClose={cerrarOverlay}
+        >
+          <ConsumoForm insumoInicial={insumoOverlay} onDone={cerrarOverlay} />
+        </BottomSheet>
+      )}
+
+      {overlay?.tipo === 'editar' && insumoOverlay && (
+        <BottomSheet titulo="Editar insumo" onClose={cerrarOverlay}>
+          <EditarInsumoForm
+            insumo={insumoOverlay}
+            onGuardado={cerrarOverlay}
+            onCancelar={cerrarOverlay}
+          />
+        </BottomSheet>
+      )}
+
+      {overlay?.tipo === 'baja' && insumoOverlay && (
+        <ConfirmarBajaDialog
+          insumo={insumoOverlay}
+          stockTotal={
+            estadosInsumo.find((e) => e.insumo.id === insumoOverlay.id)
+              ?.stockTotal ?? 0
+          }
+          isPending={bajaPendiente}
+          error={errorAccion}
+          onConfirmar={() => void handleConfirmarBaja(insumoOverlay.id)}
+          onCancelar={cerrarOverlay}
+        />
+      )}
     </div>
   )
 }

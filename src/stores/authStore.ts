@@ -13,9 +13,11 @@ interface AuthState {
   hydrate: () => Promise<void>
   login: (usuario: UsuarioActual) => Promise<void>
   logout: () => Promise<void>
+  /** Feature 007 FR-021b: refresh a role the server changed (e.g. admin demoted). */
+  actualizarRol: (rol: UsuarioActual['rol']) => Promise<void>
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   usuario: null,
   isReady: false,
   hydrate: async () => {
@@ -36,6 +38,13 @@ export const useAuthStore = create<AuthState>((set) => ({
   logout: async () => {
     await db.usuarioActual.clear()
     set({ usuario: null, isReady: true })
+  },
+  actualizarRol: async (rol) => {
+    const usuario = get().usuario
+    if (!usuario || usuario.rol === rol) return
+    const actualizado = { ...usuario, rol }
+    await db.usuarioActual.put(actualizado)
+    set({ usuario: actualizado })
   },
 }))
 

@@ -11,6 +11,7 @@ import { InventarioView } from '../features/insumos/components/InventarioView'
 import { ComprasPlaceholder } from '../features/compras/components/ComprasPlaceholder'
 import { MasView } from '../features/mas/components/MasView'
 import { AppHeader } from './AppHeader'
+import { AvisosConsumo } from './AvisosConsumo'
 import { BottomNav, type Vista } from './BottomNav'
 
 function App() {
@@ -65,6 +66,8 @@ function App() {
           {vista === 'compras' && <ComprasPlaceholder />}
           {vista === 'alertas' && <AlertasView />}
           {vista === 'mas' && <MasView />}
+
+          <AvisosConsumo />
         </div>
       )}
     </main>

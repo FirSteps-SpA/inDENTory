@@ -21,10 +21,21 @@ import { TouchButton } from '../../../components/ui/TouchButton'
  * descontada por defecto del lote más próximo a caducar (FEFO, FR-006), con
  * override manual, rechazando cualquier sobreconsumo sin escribir movimiento
  * (FR-007).
+ *
+ * Feature 007: con `insumoInicial` (menú "Consumir otra cantidad") el insumo
+ * llega preseleccionado y no se muestra la búsqueda; el override manual de
+ * lote sigue listando lotes caducados con stock — la vía explícita para
+ * consumirlos (Clarification Q1). `onDone` se llama tras un consumo exitoso.
+ * Sin props se comporta igual que antes (MasView).
  */
-export function ConsumoForm() {
+export interface ConsumoFormProps {
+  insumoInicial?: Insumo
+  onDone?: () => void
+}
+
+export function ConsumoForm({ insumoInicial, onDone }: ConsumoFormProps = {}) {
   const lotesCache = useInventoryStore((s) => s.lotes)
-  const [insumo, setInsumo] = useState<Insumo | null>(null)
+  const [insumo, setInsumo] = useState<Insumo | null>(insumoInicial ?? null)
   const [lotesConStock, setLotesConStock] = useState<LoteConStock[]>([])
   // Only set by a user action (manual override in the <select>, or a scan
   // matching a specific lote) — never by an effect — so the FEFO default
@@ -72,7 +83,7 @@ export function ConsumoForm() {
   }
 
   function reiniciar() {
-    setInsumo(null)
+    setInsumo(insumoInicial ?? null)
     setLotesConStock([])
     setLoteOverrideId(null)
     setCantidad('')
@@ -119,6 +130,7 @@ export function ConsumoForm() {
       })
       setMensajeExito(`Consumo de "${insumo.nombre}" registrado.`)
       reiniciar()
+      onDone?.()
     } finally {
       setIsPending(false)
     }
@@ -151,9 +163,11 @@ export function ConsumoForm() {
         </div>
         <p className="text-sm font-bold text-text">{insumo.nombre}</p>
         <div className="flex-1" />
-        <TouchButton type="button" variant="ghost" onClick={reiniciar} className="text-sm">
-          Cambiar insumo
-        </TouchButton>
+        {!insumoInicial && (
+          <TouchButton type="button" variant="ghost" onClick={reiniciar} className="text-sm">
+            Cambiar insumo
+          </TouchButton>
+        )}
       </div>
 
       {lotesConStock.length === 0 ? (

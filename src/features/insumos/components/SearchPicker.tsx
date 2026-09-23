@@ -171,6 +171,8 @@ function CrearInsumoForm({
       codigoFabricante: codigoFabricante.trim() || null,
       creadoEn: new Date().toISOString(),
       stockMinimo: null,
+      dadoDeBajaEn: null,
+      dadoDeBajaPor: null,
     }
     await db.insumos.add(insumo)
     onCreated(insumo)

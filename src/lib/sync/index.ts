@@ -2,11 +2,19 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { getSupabaseStatus } from '../supabase'
 import {
   db,
+  type CambioInsumo,
   type ConfiguracionAlertas,
   type Insumo,
   type Lote,
   type Movimiento,
 } from '../db'
+import { fetchPerfilPropio } from '../supabase/perfiles'
+import {
+  filaParaSubir,
+  reproyectarInsumos,
+} from '../../features/insumos/lib/proyeccion'
+import { useAuthStore } from '../../stores/authStore'
+import { useAvisosStore } from '../../stores/avisosStore'
 import { reconcileOverdraft } from './reconcileOverdraft'
 
 interface InsumoRow {
@@ -19,6 +27,8 @@ interface InsumoRow {
   codigo_fabricante: string | null
   creado_en: string
   stock_minimo: number | null
+  dado_de_baja_en?: string | null
+  dado_de_baja_por?: string | null
 }
 
 interface ConfiguracionAlertasRow {
@@ -34,6 +44,16 @@ interface LoteRow {
   fecha_caducidad: string | null
   codigo_fabricante: string | null
   estado: 'activo' | 'revision'
+  creado_en: string
+}
+
+interface CambioInsumoRow {
+  id: string
+  insumo_id: string
+  campo: CambioInsumo['campo']
+  valor_anterior: CambioInsumo['valorAnterior']
+  valor_nuevo: CambioInsumo['valorNuevo']
+  usuario_id: string
   creado_en: string
 }
 
@@ -58,6 +78,8 @@ function toInsumoRow(insumo: Insumo): InsumoRow {
     codigo_fabricante: insumo.codigoFabricante,
     creado_en: insumo.creadoEn,
     stock_minimo: insumo.stockMinimo,
+    dado_de_baja_en: insumo.dadoDeBajaEn,
+    dado_de_baja_por: insumo.dadoDeBajaPor,
   }
 }
 
@@ -72,6 +94,8 @@ function fromInsumoRow(row: InsumoRow): Insumo {
     codigoFabricante: row.codigo_fabricante,
     creadoEn: row.creado_en,
     stockMinimo: row.stock_minimo,
+    dadoDeBajaEn: row.dado_de_baja_en ?? null,
+    dadoDeBajaPor: row.dado_de_baja_por ?? null,
   }
 }
 
@@ -119,6 +143,32 @@ function fromLoteRow(row: LoteRow): Lote {
   }
 }
 
+function toCambioInsumoRow(cambio: CambioInsumo): CambioInsumoRow {
+  return {
+    id: cambio.id,
+    insumo_id: cambio.insumoId,
+    campo: cambio.campo,
+    valor_anterior: cambio.valorAnterior,
+    valor_nuevo: cambio.valorNuevo,
+    usuario_id: cambio.usuarioId,
+    creado_en: cambio.creadoEn,
+  }
+}
+
+function fromCambioInsumoRow(row: CambioInsumoRow): CambioInsumo {
+  return {
+    id: row.id,
+    insumoId: row.insumo_id,
+    campo: row.campo,
+    valorAnterior: row.valor_anterior,
+    valorNuevo: row.valor_nuevo,
+    usuarioId: row.usuario_id,
+    creadoEn: row.creado_en,
+    sincronizado: true,
+    rechazadoEn: null,
+  }
+}
+
 function toMovimientoRow(movimiento: Movimiento): MovimientoRow {
   return {
     id: movimiento.id,
@@ -144,10 +194,111 @@ function fromMovimientoRow(row: MovimientoRow): Movimiento {
   }
 }
 
+/**
+ * Pushes every local insumo row with its not-yet-synced cambios undone
+ * (`filaParaSubir`, feature 007): the remote row never runs ahead of
+ * `cambios_insumo`, so a cambio the server later rejects (FR-021b) can't
+ * leak to other devices through the RLS-less `insumos` table.
+ */
 async function pushInsumos(client: SupabaseClient): Promise<void> {
   const insumos = await db.insumos.toArray()
   if (insumos.length === 0) return
-  await client.from('insumos').upsert(insumos.map(toInsumoRow))
+  const cambios = await db.cambiosInsumo.toArray()
+  await client
+    .from('insumos')
+    .upsert(
+      insumos.map((insumo) => toInsumoRow(filaParaSubir(insumo, cambios))),
+    )
+}
+
+function esRechazoDePermisos(
+  error: { code?: string; message?: string } | null,
+): boolean {
+  if (!error) return false
+  return (
+    error.code === '42501' || /row-level security/i.test(error.message ?? '')
+  )
+}
+
+/**
+ * Pushes pending `cambiosInsumo` (feature 007, contracts/supabase-schema.md
+ * step 2), marking rows synced only when the upsert succeeds. A batch failing
+ * on RLS is retried row by row so a rejected cambio can't block valid ones;
+ * each row rejected for lack of permissions is marked `rechazadoEn` (kept for
+ * audit, never re-pushed). Any other error leaves everything pending for the
+ * next cycle. Returns the cambios newly rejected in this cycle.
+ */
+async function pushCambiosInsumo(
+  client: SupabaseClient,
+): Promise<CambioInsumo[]> {
+  const pendientes = (await db.cambiosInsumo.toArray()).filter(
+    (cambio) => !cambio.sincronizado && cambio.rechazadoEn === null,
+  )
+  if (pendientes.length === 0) return []
+
+  const { error } = await client
+    .from('cambios_insumo')
+    .upsert(pendientes.map(toCambioInsumoRow))
+  if (!error) {
+    await db.cambiosInsumo.bulkUpdate(
+      pendientes.map((cambio) => ({
+        key: cambio.id,
+        changes: { sincronizado: true },
+      })),
+    )
+    return []
+  }
+  if (!esRechazoDePermisos(error)) return []
+
+  const rechazados: CambioInsumo[] = []
+  for (const cambio of pendientes) {
+    const { error: errorFila } = await client
+      .from('cambios_insumo')
+      .upsert(toCambioInsumoRow(cambio))
+    if (!errorFila) {
+      await db.cambiosInsumo.update(cambio.id, { sincronizado: true })
+    } else if (esRechazoDePermisos(errorFila)) {
+      await db.cambiosInsumo.update(cambio.id, {
+        rechazadoEn: new Date().toISOString(),
+      })
+      rechazados.push(cambio)
+    }
+  }
+  return rechazados
+}
+
+async function pullCambiosInsumo(client: SupabaseClient): Promise<void> {
+  const { data, error } = await client.from('cambios_insumo').select('*')
+  if (error || !data) return
+  await db.cambiosInsumo.bulkPut(
+    (data as CambioInsumoRow[]).map(fromCambioInsumoRow),
+  )
+}
+
+/**
+ * After a permissions rejection (FR-021b): tell the user once per affected
+ * insumo and refresh their cached role, so "Editar"/"Eliminar" disappear.
+ */
+async function notificarRechazos(
+  client: SupabaseClient,
+  rechazados: CambioInsumo[],
+): Promise<void> {
+  const insumoIds = [...new Set(rechazados.map((cambio) => cambio.insumoId))]
+  for (const insumoId of insumoIds) {
+    const insumo = await db.insumos.get(insumoId)
+    useAvisosStore.getState().agregar({
+      tipo: 'cambio-rechazado',
+      movimientoId: null,
+      loteId: null,
+      insumoNombre: insumo?.nombre ?? 'un insumo',
+      unidadMedida: null,
+    })
+  }
+
+  const usuario = useAuthStore.getState().usuario
+  if (!usuario) return
+  const perfil = await fetchPerfilPropio(client, usuario.id)
+  if (perfil) await useAuthStore.getState().actualizarRol(perfil.rol)
 }
 
 async function pushLotes(client: SupabaseClient): Promise<void> {
@@ -224,6 +375,11 @@ async function pullMovimientos(client: SupabaseClient): Promise<string[]> {
  * upserts), pull remote changes by id, then reconcile every lot touched by a
  * `consumo` movement in this batch (FR-012, FR-014). Never throws — a
  * missing/unreachable backend simply skips the cycle (Constitution I).
+ *
+ * Feature 007 order for the catalog (specs/007 contracts/supabase-schema.md):
+ * insumos first (so `cambios_insumo.insumo_id`'s FK is satisfied) → cambios
+ * → pull cambios → pull insumos → one reprojection from the ledger, which
+ * resolves concurrent edits per field on every device identically.
  */
 export async function runSyncBatch(): Promise<void> {
   const { client, error } = getSupabaseStatus()
@@ -232,13 +388,18 @@ export async function runSyncBatch(): Promise<void> {
   const loteIdsTocados = new Set<string>()
 
   await pushInsumos(client)
+  const rechazados = await pushCambiosInsumo(client)
+  await pullCambiosInsumo(client)
+  await pullInsumos(client)
+  await reproyectarInsumos()
+  if (rechazados.length > 0) await notificarRechazos(client, rechazados)
+
   await pushLotes(client)
   await pushConfiguracionAlertas(client)
   for (const loteId of await pushMovimientos(client)) {
     loteIdsTocados.add(loteId)
   }
 
-  await pullInsumos(client)
   await pullLotes(client)
   await pullConfiguracionAlertas(client)
   for (const loteId of await pullMovimientos(client)) {
