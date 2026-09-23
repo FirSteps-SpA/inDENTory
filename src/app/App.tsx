@@ -6,16 +6,17 @@ import { useInventoryStore } from '../stores/inventoryStore'
 import { useAlertasStore } from '../stores/alertasStore'
 import { LoginForm } from '../features/auth/LoginForm'
 import { useLogout } from '../features/auth/useLogout'
-import { RegistroForm } from '../features/insumos/components/RegistroForm'
-import { ConsumoForm } from '../features/insumos/components/ConsumoForm'
 import { AlertasView } from '../features/alertas/components/AlertasView'
+import { InventarioView } from '../features/insumos/components/InventarioView'
+import { ComprasPlaceholder } from '../features/compras/components/ComprasPlaceholder'
+import { MasView } from '../features/mas/components/MasView'
 import { AppHeader } from './AppHeader'
 import { BottomNav, type Vista } from './BottomNav'
 
 function App() {
   useBackendConnection()
   const { signOut } = useLogout()
-  const [vista, setVista] = useState<Vista>('registro')
+  const [vista, setVista] = useState<Vista>('inventario')
   const subscribeInventory = useInventoryStore((s) => s.subscribe)
   const subscribeAlertas = useAlertasStore((s) => s.subscribe)
 
@@ -60,9 +61,10 @@ function App() {
 
           <BottomNav active={vista} onChange={setVista} />
 
-          {vista === 'registro' && <RegistroForm />}
-          {vista === 'consumo' && <ConsumoForm />}
+          {vista === 'inventario' && <InventarioView />}
+          {vista === 'compras' && <ComprasPlaceholder />}
           {vista === 'alertas' && <AlertasView />}
+          {vista === 'mas' && <MasView />}
         </div>
       )}
     </main>

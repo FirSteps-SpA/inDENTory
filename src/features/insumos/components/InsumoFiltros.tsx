@@ -1,0 +1,124 @@
+import type { Insumo, Lote } from '../../../lib/db'
+import type { Estado } from '../lib/estado'
+import { AlertTriangle, PackageMinus, Check, Search } from '../../../components/icons'
+import { IconField } from '../../../components/ui/IconField'
+import { ScanButton } from './ScanButton'
+
+export interface InsumoFiltrosProps {
+  texto: string
+  onTextoChange: (valor: string) => void
+  categorias: string[]
+  categoria: string
+  onCategoriaChange: (valor: string) => void
+  estado: Estado[]
+  onEstadoChange: (valor: Estado[]) => void
+  onSelectDesdeEscaneo: (insumo: Insumo, lote?: Lote) => void
+}
+
+const ESTADOS: { estado: Estado; label: string; Icon: typeof Check }[] = [
+  { estado: 'ok', label: 'Ok', Icon: Check },
+  { estado: 'bajo-stock', label: 'Bajo Stock', Icon: PackageMinus },
+  { estado: 'proximo-a-caducar', label: 'Próximo a caducar', Icon: AlertTriangle },
+  { estado: 'caducado', label: 'Caducado', Icon: AlertTriangle },
+]
+
+/**
+ * Búsqueda + filtros del listado (spec 006 FR-005..FR-008). La búsqueda solo
+ * indexa el nombre comercial del insumo (spec Clarifications) — nunca código
+ * de fabricante ni número de lote. Los badges de estado son single-select
+ * desde esta UI (cada toque reemplaza `estado` por `[esa estado]`, o `[]` si
+ * se desactiva el único activo), aunque el tipo subyacente es un arreglo para
+ * que el resumen (User Story 1) pueda activar dos a la vez (spec 006
+ * Analysis F1/A1).
+ */
+export function InsumoFiltros({
+  texto,
+  onTextoChange,
+  categorias,
+  categoria,
+  onCategoriaChange,
+  estado,
+  onEstadoChange,
+  onSelectDesdeEscaneo,
+}: InsumoFiltrosProps) {
+  const estadoActivo = estado.length === 1 ? estado[0] : null
+
+  function toggleEstado(valor: Estado) {
+    onEstadoChange(estadoActivo === valor ? [] : [valor])
+  }
+
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="flex items-start gap-2">
+        <div className="flex-1">
+          <IconField
+            label="Buscar insumo"
+            icon={<Search size={18} />}
+            htmlFor="inventario-buscar"
+          >
+            <input
+              id="inventario-buscar"
+              type="text"
+              value={texto}
+              onChange={(event) => onTextoChange(event.target.value)}
+              placeholder="Nombre del insumo"
+              className="h-full w-full border-none bg-transparent text-[15px] text-text outline-none"
+            />
+          </IconField>
+        </div>
+        <ScanButton onSelect={onSelectDesdeEscaneo} />
+      </div>
+
+      {categorias.length > 0 && (
+        <div className="flex gap-2 overflow-x-auto">
+          <button
+            type="button"
+            onClick={() => onCategoriaChange('')}
+            aria-pressed={categoria === ''}
+            className={`touch-target shrink-0 rounded-full px-4 text-sm font-bold ${
+              categoria === ''
+                ? 'bg-primary text-white'
+                : 'border border-border text-text-muted'
+            }`}
+          >
+            Todas
+          </button>
+          {categorias.map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => onCategoriaChange(c)}
+              aria-pressed={categoria === c}
+              className={`touch-target shrink-0 rounded-full px-4 text-sm font-bold ${
+                categoria === c
+                  ? 'bg-primary text-white'
+                  : 'border border-border text-text-muted'
+              }`}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className="flex gap-2 overflow-x-auto">
+        {ESTADOS.map(({ estado: valor, label, Icon }) => (
+          <button
+            key={valor}
+            type="button"
+            onClick={() => toggleEstado(valor)}
+            aria-pressed={estadoActivo === valor}
+            className={`touch-target flex shrink-0 items-center gap-1.5 rounded-full px-4 text-sm font-bold ${
+              estadoActivo === valor
+                ? 'bg-primary text-white'
+                : 'border border-border text-text-muted'
+            }`}
+          >
+            <Icon size={14} />
+            {label}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}

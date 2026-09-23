@@ -1,6 +1,6 @@
-import { Package, PackageMinus, Bell } from '../components/icons'
+import { Package, Bell, ShoppingCart, Settings } from '../components/icons'
 
-export type Vista = 'registro' | 'consumo' | 'alertas'
+export type Vista = 'inventario' | 'compras' | 'alertas' | 'mas'
 
 export interface BottomNavProps {
   active: Vista
@@ -8,15 +8,17 @@ export interface BottomNavProps {
 }
 
 const TABS: { vista: Vista; label: string; Icon: typeof Package }[] = [
-  { vista: 'registro', label: 'Registrar', Icon: Package },
-  { vista: 'consumo', label: 'Consumir', Icon: PackageMinus },
+  { vista: 'inventario', label: 'Inventario', Icon: Package },
+  { vista: 'compras', label: 'Compras', Icon: ShoppingCart },
   { vista: 'alertas', label: 'Alertas', Icon: Bell },
+  { vista: 'mas', label: 'Más', Icon: Settings },
 ]
 
 /**
- * Shared bottom navigation (feature 005, FR-003/FR-004, contracts/design-system.md) —
- * purely presentational; `App.tsx` keeps owning the `vista` state exactly as
- * it does today.
+ * Shared bottom navigation — 4 secciones (Inventario/Compras/Alertas/Más,
+ * spec 006 FR-001/FR-002), reemplazando la navegación de 3 pestañas
+ * (Registrar/Consumir/Alertas) de la spec 005. Purely presentational;
+ * `App.tsx` keeps owning the `vista` state.
  */
 export function BottomNav({ active, onChange }: BottomNavProps) {
   return (

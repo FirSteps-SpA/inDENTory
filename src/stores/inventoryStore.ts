@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { liveQuery } from 'dexie'
 import { db, type Insumo, type Lote, type Movimiento } from '../lib/db'
+import type { Estado, EstadoInsumo } from '../features/insumos/lib/estado'
 
 /**
  * Reactive in-memory cache of the insumo/lote catalog (Constitution II),
@@ -75,6 +76,21 @@ export function insumosRecientes(insumos: Insumo[], limite = 8): Insumo[] {
 
 export function lotesDeInsumo(lotes: Lote[], insumoId: string): Lote[] {
   return lotes.filter((lote) => lote.insumoId === insumoId)
+}
+
+/**
+ * Filtro por estado de salud (spec 006 FR-008): `estados.length === 0`
+ * devuelve todo sin filtrar; en otro caso conserva las entradas cuyo estado
+ * está incluido en `estados` — un arreglo, no un valor único, porque el
+ * resumen (FR-004) puede activar `['caducado', 'proximo-a-caducar']` a la
+ * vez con un solo toque (spec 006's Analysis F1/A1).
+ */
+export function searchInsumosPorEstado(
+  estadosInsumo: EstadoInsumo[],
+  estados: Estado[],
+): EstadoInsumo[] {
+  if (estados.length === 0) return estadosInsumo
+  return estadosInsumo.filter((e) => estados.includes(e.estado))
 }
 
 /** Coincidencia por código de fabricante/lote para el flujo de escaneo (FR-010). */
