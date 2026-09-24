@@ -1,8 +1,6 @@
-import type { Insumo, Lote } from '../../../lib/db'
 import type { Estado } from '../lib/estado'
 import { AlertTriangle, PackageMinus, Check, Search } from '../../../components/icons'
 import { IconField } from '../../../components/ui/IconField'
-import { ScanButton } from './ScanButton'
 
 export interface InsumoFiltrosProps {
   texto: string
@@ -12,7 +10,6 @@ export interface InsumoFiltrosProps {
   onCategoriaChange: (valor: string) => void
   estado: Estado[]
   onEstadoChange: (valor: Estado[]) => void
-  onSelectDesdeEscaneo: (insumo: Insumo, lote?: Lote) => void
 }
 
 const ESTADOS: { estado: Estado; label: string; Icon: typeof Check }[] = [
@@ -39,7 +36,6 @@ export function InsumoFiltros({
   onCategoriaChange,
   estado,
   onEstadoChange,
-  onSelectDesdeEscaneo,
 }: InsumoFiltrosProps) {
   const estadoActivo = estado.length === 1 ? estado[0] : null
 
@@ -66,7 +62,6 @@ export function InsumoFiltros({
             />
           </IconField>
         </div>
-        <ScanButton onSelect={onSelectDesdeEscaneo} />
       </div>
 
       {categorias.length > 0 && (

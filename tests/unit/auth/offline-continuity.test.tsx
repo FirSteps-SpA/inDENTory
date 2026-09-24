@@ -41,7 +41,7 @@ describe('offline continuity', () => {
     render(<App />)
 
     expect(
-      await screen.findByText(/Sesión iniciada como Ana Pérez/),
+      await screen.findByRole('button', { name: /Inventario/ }),
     ).toBeInTheDocument()
     expect(signInWithPassword).not.toHaveBeenCalled()
   })

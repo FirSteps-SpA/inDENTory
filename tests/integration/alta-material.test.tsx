@@ -655,23 +655,15 @@ describe('AltaMaterialView — US4 (duplicados, código, escaneo)', () => {
     ).toBeInTheDocument()
   })
 
-  it('the scan button does not touch the camera until clicked; a match fills the field and warns', async () => {
-    scan.mockResolvedValue({ status: 'success', codigo: '7790001' })
+  it('hides the scan option for this release — no "Escanear" control anywhere in the alta flow (spec 011 FR-008/FR-009)', async () => {
     render(<Harness />)
     fireEvent.click(screen.getByRole('button', { name: 'Material' }))
     await screen.findByLabelText('Nombre del material')
-    expect(scan).not.toHaveBeenCalled()
-
-    // `InsumoFiltros` also mounts a `ScanButton` — the alta form's own is the last one.
-    fireEvent.click(screen.getAllByRole('button', { name: 'Escanear' }).at(-1)!)
-    await waitFor(() => expect(scan).toHaveBeenCalledTimes(1))
 
     expect(
-      await screen.findByText('Este código ya corresponde a «Composite A2».'),
-    ).toBeInTheDocument()
-    expect(screen.getByLabelText('Código de barras (opcional)')).toHaveValue(
-      '7790001',
-    )
+      screen.queryByRole('button', { name: 'Escanear' }),
+    ).not.toBeInTheDocument()
+    expect(scan).not.toHaveBeenCalled()
   })
 
   it('flags "Posible duplicado" on the newer of two same-name insumos, admin only, and clears it on baja', async () => {

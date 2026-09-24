@@ -8,7 +8,6 @@ import {
   lotesDeInsumo,
   useInventoryStore,
 } from '../../../stores/inventoryStore'
-import { ScanButton } from './ScanButton'
 import { SearchPicker } from './SearchPicker'
 import { Package, Plus, Minus } from '../../../components/icons'
 import { Badge } from '../../../components/ui/Badge'
@@ -147,7 +146,6 @@ export function ConsumoForm({ insumoInicial, onDone }: ConsumoFormProps = {}) {
           </Card>
         )}
         <SearchPicker onSelect={(insumo) => seleccionarInsumo(insumo)} />
-        <ScanButton onSelect={seleccionarInsumo} />
       </div>
     )
   }

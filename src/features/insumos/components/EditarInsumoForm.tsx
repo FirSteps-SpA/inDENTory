@@ -29,8 +29,12 @@ const INPUT_CLASS =
  * Escaneo del código de fabricante solo bajo acción explícita (spec 007
  * FR-023, Constitution V): la cámara se pide únicamente tras tocar
  * "Escanear", nunca al abrir el formulario.
+ *
+ * Oculta temporalmente de este formulario (spec 011 FR-008/FR-010): se deja
+ * de invocar más abajo pero se conserva y se exporta (sin cambios de
+ * implementación) para poder reactivarla más adelante sin reescribirla.
  */
-function EscanearCodigo({ onCodigo }: { onCodigo: (codigo: string) => void }) {
+export function EscanearCodigo({ onCodigo }: { onCodigo: (codigo: string) => void }) {
   const { scan, stop } = useBarcodeScanner()
   const videoRef = useRef<HTMLVideoElement>(null)
   const [activo, setActivo] = useState(false)
@@ -302,7 +306,6 @@ export function EditarInsumoForm({
             className={INPUT_CLASS}
           />
         </IconField>
-        <EscanearCodigo onCodigo={setCodigoFabricante} />
       </div>
 
       <div className="flex flex-col gap-1">

@@ -5,6 +5,6 @@ import App from '../../src/app/App'
 describe('App', () => {
   it('renders the app shell without crashing', () => {
     render(<App />)
-    expect(screen.getByText('inDENTory')).toBeInTheDocument()
+    expect(screen.getByText('DENTDELION')).toBeInTheDocument()
   })
 })

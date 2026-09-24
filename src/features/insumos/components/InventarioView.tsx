@@ -171,7 +171,6 @@ export function InventarioView() {
         onCategoriaChange={setCategoria}
         estado={estado}
         onEstadoChange={setEstado}
-        onSelectDesdeEscaneo={(insumo) => setInsumoSeleccionadoId(insumo.id)}
       />
 
       {errorAccion && !overlay && (

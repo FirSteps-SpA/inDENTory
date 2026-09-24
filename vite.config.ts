@@ -12,8 +12,8 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'inDENTory',
-        short_name: 'inDENTory',
+        name: 'DENTDELION',
+        short_name: 'DENTDELION',
         description: 'Gestión de inventario dental offline-first',
         theme_color: '#0E5C73',
         background_color: '#F5F8FA',

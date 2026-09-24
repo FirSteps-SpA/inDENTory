@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useLogin } from './useLogin'
+import { APP_NAME } from '../../lib/branding'
 import { Mail, Lock, Tooth } from '../../components/icons'
 import { IconField } from '../../components/ui/IconField'
 import { TouchButton } from '../../components/ui/TouchButton'
@@ -23,7 +24,7 @@ export function LoginForm() {
           <Tooth size={30} className="text-white" />
         </div>
         <h1 className="text-xl font-extrabold tracking-tight text-text">
-          inDENTory
+          {APP_NAME}
         </h1>
       </div>
       <form onSubmit={handleSubmit} className="flex w-full flex-col gap-4 text-left">

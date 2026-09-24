@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { APP_NAME } from '../lib/branding'
 import { useBackendConnection } from '../lib/supabase/useBackendConnection'
 import { startBackgroundSync } from '../lib/sync'
 import { useAuthStore } from '../stores/authStore'
@@ -6,7 +7,6 @@ import { useInventoryStore } from '../stores/inventoryStore'
 import { useAlertasStore } from '../stores/alertasStore'
 import { useClinicaStore } from '../stores/clinicaStore'
 import { LoginForm } from '../features/auth/LoginForm'
-import { useLogout } from '../features/auth/useLogout'
 import { AlertasView } from '../features/alertas/components/AlertasView'
 import { contarAlertasPendientes } from '../features/alertas/lib/resumen'
 import { InventarioView } from '../features/insumos/components/InventarioView'
@@ -18,7 +18,6 @@ import { BottomNav, type Vista } from './BottomNav'
 
 function App() {
   useBackendConnection()
-  const { signOut } = useLogout()
   const [vista, setVista] = useState<Vista>('inventario')
   const subscribeInventory = useInventoryStore((s) => s.subscribe)
   const subscribeAlertas = useAlertasStore((s) => s.subscribe)
@@ -70,16 +69,14 @@ function App() {
     <main className="flex min-h-dvh flex-col items-center gap-4 bg-bg p-6 text-center">
       {!isReady ? (
         <>
-          <h1 className="text-2xl font-extrabold text-text">inDENTory</h1>
+          <h1 className="text-2xl font-extrabold text-text">{APP_NAME}</h1>
           <p className="text-sm text-text-muted">Cargando…</p>
         </>
       ) : !usuario ? (
         <LoginForm />
       ) : (
-        <div className="flex w-full max-w-md flex-col items-stretch gap-4 text-left">
-          <AppHeader onSignOut={() => void signOut()} />
-
-          <BottomNav active={vista} onChange={setVista} alertasBadge={alertasBadge} />
+        <div className="flex w-full max-w-md flex-col items-stretch gap-4 pb-[calc(5rem+env(safe-area-inset-bottom))] text-left">
+          <AppHeader />
 
           {vista === 'inventario' && <InventarioView />}
           {vista === 'compras' && <ComprasView />}
@@ -87,6 +84,8 @@ function App() {
           {vista === 'mas' && <AjustesView />}
 
           <AvisosConsumo />
+
+          <BottomNav active={vista} onChange={setVista} alertasBadge={alertasBadge} />
         </div>
       )}
     </main>
