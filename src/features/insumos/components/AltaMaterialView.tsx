@@ -21,7 +21,6 @@ import { TouchButton } from '../../../components/ui/TouchButton'
 import { BottomSheet } from '../../../components/ui/BottomSheet'
 import { Stepper } from '../../../components/ui/Stepper'
 import { ConfirmarLoteCaducadoDialog } from './ConfirmarLoteCaducadoDialog'
-import { ScanButton } from './ScanButton'
 
 export interface AltaMaterialViewProps {
   nombreInicial?: string
@@ -502,12 +501,6 @@ export function AltaMaterialView({
                 className={INPUT_CLASS}
               />
             </IconField>
-            <ScanButton
-              onCodigo={(codigo) => {
-                setDatos({ codigoFabricante: codigo })
-                verificarCodigo(codigo)
-              }}
-            />
             {codigoDuplicado && (
               <Card className="flex flex-col gap-2 bg-warning-30-bg px-3.5 py-2.5">
                 <p className="text-sm font-bold text-warning-30-text">
