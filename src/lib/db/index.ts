@@ -1,4 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie'
+import type { AltaMaterialInput } from '../../features/insumos/lib/alta'
 
 /**
  * The locally-cached authenticated identity that gates offline app access
@@ -28,6 +29,45 @@ export interface Insumo {
   creadoEn: string
   /** Feature 004 (FR-001) — optional; `null`/unset never generates a stock-bajo alert (FR-004). */
   stockMinimo: number | null
+  /**
+   * Feature 007 (FR-018) — baja lógica. `null` = activo. Projected from the
+   * earliest `CambioInsumo` with `campo: 'baja'` (data-model.md), never
+   * written directly.
+   */
+  dadoDeBajaEn: string | null
+  dadoDeBajaPor: string | null
+  /** Feature 008 (R10) — autor del alta; `null` en insumos anteriores a esta spec. */
+  creadoPor: string | null
+}
+
+/** Campos de `Insumo` que un administrador puede editar (feature 007 FR-013). */
+export type CampoEditableInsumo =
+  | 'nombre'
+  | 'categoria'
+  | 'unidadMedida'
+  | 'stockMinimo'
+  | 'codigoFabricante'
+  | 'caduca'
+
+/**
+ * Feature 007 data-model.md — CambioInsumo. Append-only per-field ledger:
+ * one row per field changed by an edit (or one `'baja'` row), so concurrent
+ * edits resolve per field (FR-021a) and every overwritten value stays
+ * auditable. The `Insumo` row is a projection of this ledger
+ * (`proyectarInsumo`). Only the local `sincronizado`/`rechazadoEn` flags are
+ * ever updated after creation.
+ */
+export interface CambioInsumo {
+  id: string
+  insumoId: string
+  campo: CampoEditableInsumo | 'baja'
+  valorAnterior: string | number | boolean | null
+  valorNuevo: string | number | boolean | null
+  usuarioId: string
+  creadoEn: string
+  sincronizado: boolean
+  /** Local-only: set when the server rejected it for lack of permissions (FR-021b). */
+  rechazadoEn: string | null
 }
 
 /** Feature 002 data-model.md — Lote. */
@@ -67,6 +107,77 @@ export interface ConfiguracionAlertas {
 }
 
 /**
+ * Feature 008 data-model.md — Categoria. Solo las categorías creadas por
+ * administradores; las precargadas y "Sin categoría" son constantes de
+ * código (`categorias.ts`), no filas.
+ */
+export interface Categoria {
+  id: string
+  nombre: string
+  creadoPor: string
+  creadoEn: string
+  sincronizado: boolean
+  /** Local-only: set when the server rejected it for lack of permissions (R4). */
+  rechazadoEn: string | null
+  /** Feature 010 (FR-017/018) — `null` = activa; con fecha = oculta del selector, reversible. */
+  desactivadoEn: string | null
+}
+
+/**
+ * Feature 008 data-model.md — Borrador. Fila única (`id` fija) del
+ * formulario "Nuevo Material" en curso, nunca sincronizada (R6).
+ */
+export interface Borrador {
+  id: 'alta-material'
+  datos: Partial<AltaMaterialInput>
+  actualizadoEn: string
+}
+
+/**
+ * Feature 009 data-model.md — ItemCompra. Un pedido puntual agregado a mano
+ * a la lista de compras. Nunca se borra físicamente (research.md R1): pasa
+ * por `estado: 'pendiente' -> 'comprado' | 'eliminado'`. Se sincroniza sin
+ * bandera `sincronizado` (research.md R2) — mismo patrón que `Lote`.
+ */
+export interface ItemCompra {
+  id: string
+  nombre: string
+  cantidad: number | null
+  nota: string | null
+  /** Vínculo opcional a `Insumo.id` (FR-016); no se limpia por escritura si
+   *  ese insumo se da de baja (research.md R8) — se resuelve en memoria. */
+  insumoId: string | null
+  estado: 'pendiente' | 'comprado' | 'eliminado'
+  creadoPor: string
+  creadoEn: string
+  compradoPor: string | null
+  compradoEn: string | null
+}
+
+/**
+ * Feature 010 data-model.md — ConfiguracionClinica. Single global row (fixed
+ * id `'global'`) holding the configurable clinic/gabinete name. `null`
+ * (never configured, or the last save was rejected) means the header falls
+ * back to the default label "Gabinete" — never a sentinel string.
+ */
+export interface ConfiguracionClinica {
+  id: 'global'
+  nombre: string | null
+}
+
+/**
+ * Feature 010 data-model.md — PreferenciaNotificaciones. Single row, local
+ * to this device only (FR-027): never synced to Supabase, no `sincronizado`
+ * flag needed. Absence of a row means both types default to `true`
+ * (data-model.md's Bootstrapping).
+ */
+export interface PreferenciaNotificaciones {
+  id: 'local'
+  stockBajo: boolean
+  caducidad: boolean
+}
+
+/**
  * IndexedDB client (Constitution I: local-first primary write, Principle IV:
  * batch/expiry/stock queries). Future inventory features add their own
  * domain tables here via `db.version(n).stores({...})`.
@@ -77,6 +188,12 @@ export const db = new Dexie('inDENToryDB') as Dexie & {
   lotes: EntityTable<Lote, 'id'>
   movimientos: EntityTable<Movimiento, 'id'>
   configuracionAlertas: EntityTable<ConfiguracionAlertas, 'id'>
+  cambiosInsumo: EntityTable<CambioInsumo, 'id'>
+  categorias: EntityTable<Categoria, 'id'>
+  borradores: EntityTable<Borrador, 'id'>
+  itemsCompra: EntityTable<ItemCompra, 'id'>
+  configuracionClinica: EntityTable<ConfiguracionClinica, 'id'>
+  preferenciasNotificaciones: EntityTable<PreferenciaNotificaciones, 'id'>
 }
 
 db.version(1).stores({
@@ -97,5 +214,65 @@ db.version(2).stores({
 db.version(3).stores({
   configuracionAlertas: 'id',
 })
+
+// version(4): feature 007 (data-model.md) — new append-only `cambiosInsumo`
+// ledger; existing insumos get the baja fields as `null` (activo). No new
+// index on insumos: the activos filter runs in memory (≤300 rows).
+db.version(4)
+  .stores({
+    cambiosInsumo: 'id, insumoId, campo, creadoEn, sincronizado',
+  })
+  .upgrade((tx) =>
+    tx
+      .table('insumos')
+      .toCollection()
+      .modify((insumo: Partial<Insumo>) => {
+        insumo.dadoDeBajaEn ??= null
+        insumo.dadoDeBajaPor ??= null
+      }),
+  )
+
+// version(5): feature 008 (data-model.md) — new `categorias` (synced) and
+// `borradores` (local-only) tables; existing insumos get `creadoPor: null`
+// (author unknown for pre-008 rows).
+db.version(5)
+  .stores({
+    categorias: 'id, creadoEn, sincronizado',
+    borradores: 'id',
+  })
+  .upgrade((tx) =>
+    tx
+      .table('insumos')
+      .toCollection()
+      .modify((insumo: Partial<Insumo>) => {
+        insumo.creadoPor ??= null
+      }),
+  )
+
+// version(6): feature 009 (data-model.md) — new `itemsCompra` table, never
+// synced via a `sincronizado` flag (research.md R2, same pattern as
+// `lotes`). No existing table changes shape, so no `.upgrade()`.
+db.version(6).stores({
+  itemsCompra: 'id, insumoId, estado, creadoEn',
+})
+
+// version(7): feature 010 (data-model.md) — new `configuracionClinica`
+// (synced, single global row) and `preferenciasNotificaciones` (local-only,
+// never synced) tables; existing `categorias` rows get `desactivadoEn: null`
+// (activas). `categorias` keeps its index string unchanged — `desactivadoEn`
+// is filtered in memory, same criterion as the rest of the catalog.
+db.version(7)
+  .stores({
+    configuracionClinica: 'id',
+    preferenciasNotificaciones: 'id',
+  })
+  .upgrade((tx) =>
+    tx
+      .table('categorias')
+      .toCollection()
+      .modify((categoria: Partial<Categoria>) => {
+        categoria.desactivadoEn ??= null
+      }),
+  )
 
 export type { EntityTable }

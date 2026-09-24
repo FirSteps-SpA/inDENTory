@@ -25,6 +25,9 @@ const insumo: Insumo = {
   codigoFabricante: null,
   creadoEn: new Date().toISOString(),
   stockMinimo: 10,
+  dadoDeBajaEn: null,
+  dadoDeBajaPor: null,
+  creadoPor: null,
 }
 
 const lote: Lote = {
@@ -109,6 +112,34 @@ describe('AlertasView reactivity (FR-011)', () => {
     expect(screen.getByText(/Anestesia local/)).toBeInTheDocument()
     expect(
       screen.queryByText(/Ningún insumo está por debajo de su stock mínimo/),
+    ).not.toBeInTheDocument()
+  })
+
+  it('no longer shows the stock-mínimo/niveles-de-aviso config controls, even for an administrador (spec 010 FR-006/007/008)', () => {
+    useAuthStore.setState({
+      usuario: {
+        id: 'admin-1',
+        email: 'admin@a.com',
+        nombre: 'Admin',
+        rol: 'administrador',
+        autenticadoEn: new Date().toISOString(),
+      },
+      isReady: true,
+    })
+    useInventoryStore.setState({
+      insumos: [insumo],
+      lotes: [lote],
+      movimientos: [ingreso(15)],
+      isReady: true,
+    })
+
+    render(<AlertasView />)
+
+    expect(
+      screen.queryByText('Configurar stock mínimo por insumo'),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByText('Configurar niveles de aviso de caducidad'),
     ).not.toBeInTheDocument()
   })
 })

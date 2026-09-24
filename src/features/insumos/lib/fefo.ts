@@ -10,7 +10,7 @@ export interface LoteConStock {
  * not expiring, FR-002b) as sorting after every dated value — a lote with
  * no fecha de caducidad is a last resort, never picked ahead of a dated one.
  */
-function compareFechaCaducidad(a: string | null, b: string | null): number {
+export function compararFefo(a: string | null, b: string | null): number {
   if (a === b) return 0
   if (a === null) return 1
   if (b === null) return -1
@@ -34,9 +34,7 @@ export function selectFefoLot(
 ): LoteConStock | null {
   const conStock = [...lotesConStock]
     .filter((entry) => entry.stockDisponible > 0)
-    .sort((a, b) =>
-      compareFechaCaducidad(a.lote.fechaCaducidad, b.lote.fechaCaducidad),
-    )
+    .sort((a, b) => compararFefo(a.lote.fechaCaducidad, b.lote.fechaCaducidad))
 
   if (conStock.length === 0) return null
 

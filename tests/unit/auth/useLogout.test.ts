@@ -18,6 +18,9 @@ vi.mock('../../../src/lib/db', () => ({
       add: vi.fn(async () => {}),
       toCollection: () => ({ first: async () => null }),
     },
+    borradores: {
+      clear: vi.fn(async () => {}),
+    },
   },
 }))
 

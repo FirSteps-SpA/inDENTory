@@ -27,6 +27,9 @@ function makeInsumo(overrides: Partial<Insumo>): Insumo {
     codigoFabricante: null,
     creadoEn: new Date().toISOString(),
     stockMinimo: null,
+    dadoDeBajaEn: null,
+    dadoDeBajaPor: null,
+    creadoPor: null,
     ...overrides,
   }
 }
