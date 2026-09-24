@@ -119,6 +119,8 @@ export interface Categoria {
   sincronizado: boolean
   /** Local-only: set when the server rejected it for lack of permissions (R4). */
   rechazadoEn: string | null
+  /** Feature 010 (FR-017/018) — `null` = activa; con fecha = oculta del selector, reversible. */
+  desactivadoEn: string | null
 }
 
 /**
@@ -153,6 +155,29 @@ export interface ItemCompra {
 }
 
 /**
+ * Feature 010 data-model.md — ConfiguracionClinica. Single global row (fixed
+ * id `'global'`) holding the configurable clinic/gabinete name. `null`
+ * (never configured, or the last save was rejected) means the header falls
+ * back to the default label "Gabinete" — never a sentinel string.
+ */
+export interface ConfiguracionClinica {
+  id: 'global'
+  nombre: string | null
+}
+
+/**
+ * Feature 010 data-model.md — PreferenciaNotificaciones. Single row, local
+ * to this device only (FR-027): never synced to Supabase, no `sincronizado`
+ * flag needed. Absence of a row means both types default to `true`
+ * (data-model.md's Bootstrapping).
+ */
+export interface PreferenciaNotificaciones {
+  id: 'local'
+  stockBajo: boolean
+  caducidad: boolean
+}
+
+/**
  * IndexedDB client (Constitution I: local-first primary write, Principle IV:
  * batch/expiry/stock queries). Future inventory features add their own
  * domain tables here via `db.version(n).stores({...})`.
@@ -167,6 +192,8 @@ export const db = new Dexie('inDENToryDB') as Dexie & {
   categorias: EntityTable<Categoria, 'id'>
   borradores: EntityTable<Borrador, 'id'>
   itemsCompra: EntityTable<ItemCompra, 'id'>
+  configuracionClinica: EntityTable<ConfiguracionClinica, 'id'>
+  preferenciasNotificaciones: EntityTable<PreferenciaNotificaciones, 'id'>
 }
 
 db.version(1).stores({
@@ -228,5 +255,24 @@ db.version(5)
 db.version(6).stores({
   itemsCompra: 'id, insumoId, estado, creadoEn',
 })
+
+// version(7): feature 010 (data-model.md) — new `configuracionClinica`
+// (synced, single global row) and `preferenciasNotificaciones` (local-only,
+// never synced) tables; existing `categorias` rows get `desactivadoEn: null`
+// (activas). `categorias` keeps its index string unchanged — `desactivadoEn`
+// is filtered in memory, same criterion as the rest of the catalog.
+db.version(7)
+  .stores({
+    configuracionClinica: 'id',
+    preferenciasNotificaciones: 'id',
+  })
+  .upgrade((tx) =>
+    tx
+      .table('categorias')
+      .toCollection()
+      .modify((categoria: Partial<Categoria>) => {
+        categoria.desactivadoEn ??= null
+      }),
+  )
 
 export type { EntityTable }

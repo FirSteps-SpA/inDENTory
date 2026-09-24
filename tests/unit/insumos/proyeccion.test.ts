@@ -84,14 +84,8 @@ describe('proyectarInsumo (spec 007 FR-021a, research.md R9)', () => {
     expect(proyectarInsumo(base, [b, a]).categoria).toBe('Restauración')
   })
 
-  it('baja wins over a later edit and uses the earliest baja', () => {
+  it('baja wins over a concurrent edit to another field, regardless of order', () => {
     const r = proyectarInsumo(base, [
-      cambio({
-        campo: 'baja',
-        valorNuevo: true,
-        usuarioId: 'admin-b',
-        creadoEn: '2026-09-05T00:00:00.000Z',
-      }),
       cambio({
         campo: 'baja',
         valorNuevo: true,
@@ -108,6 +102,70 @@ describe('proyectarInsumo (spec 007 FR-021a, research.md R9)', () => {
       nombre: 'Editado',
       dadoDeBajaEn: '2026-09-04T00:00:00.000Z',
       dadoDeBajaPor: 'admin-a',
+    })
+  })
+
+  it('two concurrent bajas resolve to the most recent one, like any other field (spec 010 research.md R2)', () => {
+    const r = proyectarInsumo(base, [
+      cambio({
+        campo: 'baja',
+        valorNuevo: true,
+        usuarioId: 'admin-a',
+        creadoEn: '2026-09-04T00:00:00.000Z',
+      }),
+      cambio({
+        campo: 'baja',
+        valorNuevo: true,
+        usuarioId: 'admin-b',
+        creadoEn: '2026-09-05T00:00:00.000Z',
+      }),
+    ])
+    expect(r).toMatchObject({
+      dadoDeBajaEn: '2026-09-05T00:00:00.000Z',
+      dadoDeBajaPor: 'admin-b',
+    })
+  })
+
+  it('a later restaurar reverts an earlier baja (spec 010 FR-023, research.md R2)', () => {
+    const r = proyectarInsumo(base, [
+      cambio({
+        campo: 'baja',
+        valorAnterior: null,
+        valorNuevo: true,
+        usuarioId: 'admin-a',
+        creadoEn: '2026-09-04T00:00:00.000Z',
+      }),
+      cambio({
+        campo: 'baja',
+        valorAnterior: true,
+        valorNuevo: null,
+        usuarioId: 'admin-b',
+        creadoEn: '2026-09-05T00:00:00.000Z',
+      }),
+    ])
+    expect(r).toMatchObject({ dadoDeBajaEn: null, dadoDeBajaPor: null })
+  })
+
+  it('a later baja re-baja-s an insumo after an earlier restaurar', () => {
+    const r = proyectarInsumo(base, [
+      cambio({
+        campo: 'baja',
+        valorAnterior: true,
+        valorNuevo: null,
+        usuarioId: 'admin-a',
+        creadoEn: '2026-09-04T00:00:00.000Z',
+      }),
+      cambio({
+        campo: 'baja',
+        valorAnterior: null,
+        valorNuevo: true,
+        usuarioId: 'admin-b',
+        creadoEn: '2026-09-05T00:00:00.000Z',
+      }),
+    ])
+    expect(r).toMatchObject({
+      dadoDeBajaEn: '2026-09-05T00:00:00.000Z',
+      dadoDeBajaPor: 'admin-b',
     })
   })
 
@@ -164,5 +222,25 @@ describe('filaParaSubir', () => {
       }),
     ])
     expect(fila).toMatchObject({ nombre: 'Anestesia', stockMinimo: 3 })
+  })
+
+  it('reflects the most recent synced baja/restaurar, not the first one (spec 010 research.md R2)', () => {
+    const fila = filaParaSubir(base, [
+      cambio({
+        campo: 'baja',
+        valorAnterior: null,
+        valorNuevo: true,
+        creadoEn: '2026-09-04T00:00:00.000Z',
+        sincronizado: true,
+      }),
+      cambio({
+        campo: 'baja',
+        valorAnterior: true,
+        valorNuevo: null,
+        creadoEn: '2026-09-05T00:00:00.000Z',
+        sincronizado: true,
+      }),
+    ])
+    expect(fila).toMatchObject({ dadoDeBajaEn: null, dadoDeBajaPor: null })
   })
 })

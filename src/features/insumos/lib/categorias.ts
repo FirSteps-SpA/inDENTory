@@ -38,6 +38,13 @@ export interface CategoriaCatalogo {
   clave: string
   nombre: string
   origen: 'precargada' | 'sin-categoria' | 'creada' | 'texto-libre'
+  /** Feature 010 (FR-013/017/018) — `false` solo para una `origen: 'creada'`
+   *  desactivada; siempre `true` para el resto (nunca se desactivan). */
+  activa: boolean
+  /** Feature 010 — `Categoria.id` de la fila fuente, solo para `origen:
+   *  'creada'`. Es lo que `renombrarCategoria`/`(des)activarCategoria`
+   *  esperan como `categoriaId`. */
+  id?: string
 }
 
 const CLAVE_SIN_CATEGORIA = claveCategoria(SIN_CATEGORIA)
@@ -49,14 +56,16 @@ function compararCategorias(a: Categoria, b: Categoria): number {
 }
 
 /**
- * Selector de alta/edición (FR-009, research.md R1/R2): funde precargadas,
- * filas `Categoria` no rechazadas (la más antigua por clave gana) y nombres
- * de texto libre presentes en insumos activos (el primero en orden
- * alfabético gana), alfabético y con "Sin categoría" siempre al final.
+ * Funde precargadas, filas `Categoria` no rechazadas (la más antigua por
+ * clave gana) y nombres de texto libre presentes en insumos activos (el
+ * primero en orden alfabético gana), alfabético y con "Sin categoría"
+ * siempre al final. `incluirDesactivadas` controla si las filas `creada`
+ * con `desactivadoEn` distinto de `null` se incluyen (spec 010 FR-013).
  */
-export function catalogoCategorias(
+function construirCatalogo(
   categorias: Categoria[],
   insumosActivos: Insumo[],
+  incluirDesactivadas: boolean,
 ): CategoriaCatalogo[] {
   const porClave = new Map<string, CategoriaCatalogo>()
 
@@ -65,17 +74,28 @@ export function catalogoCategorias(
       clave: claveCategoria(nombre),
       nombre,
       origen: 'precargada',
+      activa: true,
     })
   }
 
   const creadas = categorias
-    .filter((categoria) => categoria.rechazadoEn === null)
+    .filter(
+      (categoria) =>
+        categoria.rechazadoEn === null &&
+        (incluirDesactivadas || categoria.desactivadoEn === null),
+    )
     .sort(compararCategorias)
   for (const fila of creadas) {
     const clave = claveCategoria(fila.nombre)
     if (clave === CLAVE_SIN_CATEGORIA) continue
     if (!porClave.has(clave)) {
-      porClave.set(clave, { clave, nombre: fila.nombre, origen: 'creada' })
+      porClave.set(clave, {
+        clave,
+        nombre: fila.nombre,
+        origen: 'creada',
+        activa: fila.desactivadoEn === null,
+        id: fila.id,
+      })
     }
   }
 
@@ -86,7 +106,7 @@ export function catalogoCategorias(
     const clave = claveCategoria(nombre)
     if (clave === CLAVE_SIN_CATEGORIA) continue
     if (!porClave.has(clave)) {
-      porClave.set(clave, { clave, nombre, origen: 'texto-libre' })
+      porClave.set(clave, { clave, nombre, origen: 'texto-libre', activa: true })
     }
   }
 
@@ -97,8 +117,32 @@ export function catalogoCategorias(
     clave: CLAVE_SIN_CATEGORIA,
     nombre: SIN_CATEGORIA,
     origen: 'sin-categoria',
+    activa: true,
   })
   return resultado
+}
+
+/**
+ * Selector de alta/edición (FR-009, research.md R1/R2): excluye las
+ * categorías creadas y desactivadas (spec 010 FR-017) — dejan de ofrecerse
+ * como opción sin afectar a los materiales que ya las tenían asignadas.
+ */
+export function catalogoCategorias(
+  categorias: Categoria[],
+  insumosActivos: Insumo[],
+): CategoriaCatalogo[] {
+  return construirCatalogo(categorias, insumosActivos, false)
+}
+
+/**
+ * Listado completo para "Ajustes" ▸ "Categorías" (spec 010 FR-013): incluye
+ * las creadas desactivadas (con `activa: false`) para poder reactivarlas.
+ */
+export function catalogoCategoriasCompleto(
+  categorias: Categoria[],
+  insumosActivos: Insumo[],
+): CategoriaCatalogo[] {
+  return construirCatalogo(categorias, insumosActivos, true)
 }
 
 /** Chips del Inventario (FR-011a): solo claves con ≥1 insumo activo. */

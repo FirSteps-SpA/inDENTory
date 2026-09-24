@@ -32,11 +32,15 @@ function deshacerCambios(fila: Insumo, cambios: CambioInsumo[]): void {
 
 /**
  * Proyecta la fila `Insumo` desde su ledger de cambios (spec 007 FR-021a,
- * data-model.md): por cada campo gana el cambio con mayor `(creadoEn, id)`;
- * cualquier cambio `'baja'` deja el insumo dado de baja con los datos del
- * **primero** (la baja prevalece sobre ediciones concurrentes). Un cambio
- * rechazado por el servidor (FR-021b) no participa y además se deshace sobre
- * la fila, que pudo haberlo recibido al guardarse localmente. Pura: el mismo
+ * generalizado en spec 010 research.md R2): por cada campo, incluido
+ * `'baja'`, gana el cambio con mayor `(creadoEn, id)` — igual que cualquier
+ * otro campo, sin caso especial. Un `'baja'` con `valorNuevo: true` deja el
+ * insumo dado de baja (con el `creadoEn`/`usuarioId` de esa entrada); uno
+ * con `valorNuevo: null` (restaurar, spec 010 FR-023) lo deja activo. Esto
+ * reemplaza la regla anterior ("la primera baja vigente siempre gana"), que
+ * solo tenía sentido cuando `'baja'` no era reversible. Un cambio rechazado
+ * por el servidor (FR-021b) no participa y además se deshace sobre la fila,
+ * que pudo haberlo recibido al guardarse localmente. Pura: el mismo
  * conjunto de cambios produce la misma fila en cualquier dispositivo, sin
  * importar el orden en que llegaron.
  */
@@ -61,10 +65,15 @@ export function proyectarInsumo(
     ;(proyectado as unknown as FilaEditable)[cambio.campo] = cambio.valorNuevo
   }
 
-  const primeraBaja = vigentes.find((cambio) => cambio.campo === 'baja')
-  if (primeraBaja) {
-    proyectado.dadoDeBajaEn = primeraBaja.creadoEn
-    proyectado.dadoDeBajaPor = primeraBaja.usuarioId
+  const ultimaBaja = [...vigentes]
+    .reverse()
+    .find((cambio) => cambio.campo === 'baja')
+  if (ultimaBaja && ultimaBaja.valorNuevo === true) {
+    proyectado.dadoDeBajaEn = ultimaBaja.creadoEn
+    proyectado.dadoDeBajaPor = ultimaBaja.usuarioId
+  } else if (ultimaBaja) {
+    proyectado.dadoDeBajaEn = null
+    proyectado.dadoDeBajaPor = null
   }
   proyectado.permiteDecimales = permiteDecimales(proyectado.unidadMedida)
   return proyectado
@@ -85,7 +94,9 @@ export function filaParaSubir(insumo: Insumo, cambios: CambioInsumo[]): Insumo {
   if (pendientes.length === 0) return insumo
   const fila: Insumo = { ...insumo }
   deshacerCambios(fila, pendientes)
-  // A synced baja still stands even if a later pending one is undone.
+  // The most recent *synced* baja/restaurar still stands even if a later
+  // pending one is undone (research.md R2 — same "last wins" rule as the
+  // rest of the projection, not just the first-ever baja).
   const bajaSincronizada = cambios
     .filter(
       (cambio) =>
@@ -94,10 +105,16 @@ export function filaParaSubir(insumo: Insumo, cambios: CambioInsumo[]): Insumo {
         cambio.rechazadoEn === null &&
         cambio.campo === 'baja',
     )
-    .sort(compararCambios)[0]
+    .sort(compararCambios)
+    .at(-1)
   if (bajaSincronizada) {
-    fila.dadoDeBajaEn = bajaSincronizada.creadoEn
-    fila.dadoDeBajaPor = bajaSincronizada.usuarioId
+    if (bajaSincronizada.valorNuevo === true) {
+      fila.dadoDeBajaEn = bajaSincronizada.creadoEn
+      fila.dadoDeBajaPor = bajaSincronizada.usuarioId
+    } else {
+      fila.dadoDeBajaEn = null
+      fila.dadoDeBajaPor = null
+    }
   }
   fila.permiteDecimales = permiteDecimales(fila.unidadMedida)
   return fila

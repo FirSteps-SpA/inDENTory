@@ -1,5 +1,6 @@
 import { useAuthStore } from '../stores/authStore'
 import { useAppStore } from '../stores/appStore'
+import { useClinicaStore } from '../stores/clinicaStore'
 import { Tooth } from '../components/icons'
 import { TouchButton } from '../components/ui/TouchButton'
 
@@ -21,14 +22,16 @@ export interface AppHeaderProps {
 
 /**
  * Shared authenticated-shell header (feature 005, FR-004, contracts/design-system.md):
- * logo mark, "Gabinete" pill, a binary connection indicator reading the
- * *existing* `useAppStore().isBackendConnected` flag (not a pending-operations
- * counter — spec Clarifications excludes that), and an avatar-initials chip.
- * Identical on every authenticated screen.
+ * logo mark, a pill showing the configured clinic name (spec 010 FR-020,
+ * `useClinicaStore` — falls back to "Gabinete" until one is set), a binary
+ * connection indicator reading the *existing* `useAppStore().isBackendConnected`
+ * flag (not a pending-operations counter — spec Clarifications excludes
+ * that), and an avatar-initials chip. Identical on every authenticated screen.
  */
 export function AppHeader({ onSignOut }: AppHeaderProps) {
   const usuario = useAuthStore((s) => s.usuario)
   const isBackendConnected = useAppStore((s) => s.isBackendConnected)
+  const nombreClinica = useClinicaStore((s) => s.nombreClinica)
 
   return (
     <div className="flex w-full flex-col gap-2">
@@ -41,7 +44,7 @@ export function AppHeader({ onSignOut }: AppHeaderProps) {
             inDENTory
           </span>
           <span className="inline-flex w-fit items-center rounded-full border border-primary bg-primary-soft px-2 py-px text-[10px] font-bold text-primary">
-            Gabinete
+            {nombreClinica ?? 'Gabinete'}
           </span>
         </div>
         <div className="flex-1" />

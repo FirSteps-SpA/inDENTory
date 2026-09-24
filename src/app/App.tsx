@@ -4,12 +4,14 @@ import { startBackgroundSync } from '../lib/sync'
 import { useAuthStore } from '../stores/authStore'
 import { useInventoryStore } from '../stores/inventoryStore'
 import { useAlertasStore } from '../stores/alertasStore'
+import { useClinicaStore } from '../stores/clinicaStore'
 import { LoginForm } from '../features/auth/LoginForm'
 import { useLogout } from '../features/auth/useLogout'
 import { AlertasView } from '../features/alertas/components/AlertasView'
+import { contarAlertasPendientes } from '../features/alertas/lib/resumen'
 import { InventarioView } from '../features/insumos/components/InventarioView'
 import { ComprasView } from '../features/compras/components/ComprasView'
-import { MasView } from '../features/mas/components/MasView'
+import { AjustesView } from '../features/ajustes/components/AjustesView'
 import { AppHeader } from './AppHeader'
 import { AvisosConsumo } from './AvisosConsumo'
 import { BottomNav, type Vista } from './BottomNav'
@@ -20,6 +22,7 @@ function App() {
   const [vista, setVista] = useState<Vista>('inventario')
   const subscribeInventory = useInventoryStore((s) => s.subscribe)
   const subscribeAlertas = useAlertasStore((s) => s.subscribe)
+  const subscribeClinica = useClinicaStore((s) => s.subscribe)
 
   // Boot guard: reads only the local Dexie cache (authStore.hydrate), never
   // a live Supabase call, so login-vs-app-shell is never gated on network
@@ -27,6 +30,20 @@ function App() {
   const usuario = useAuthStore((s) => s.usuario)
   const isReady = useAuthStore((s) => s.isReady)
   const hydrate = useAuthStore((s) => s.hydrate)
+
+  const insumos = useInventoryStore((s) => s.insumos)
+  const lotes = useInventoryStore((s) => s.lotes)
+  const movimientos = useInventoryStore((s) => s.movimientos)
+  const nivelesAvisoDias = useAlertasStore((s) => s.nivelesAvisoDias)
+  const preferenciaStockBajo = useAlertasStore((s) => s.preferenciaStockBajo)
+  const preferenciaCaducidad = useAlertasStore((s) => s.preferenciaCaducidad)
+  const alertasBadge = contarAlertasPendientes(
+    insumos,
+    lotes,
+    movimientos,
+    nivelesAvisoDias,
+    { stockBajo: preferenciaStockBajo, caducidad: preferenciaCaducidad },
+  )
 
   useEffect(() => {
     void hydrate()
@@ -39,13 +56,15 @@ function App() {
     if (!usuario) return
     const unsubscribeInventory = subscribeInventory()
     const unsubscribeAlertas = subscribeAlertas()
+    const unsubscribeClinica = subscribeClinica()
     const stopSync = startBackgroundSync()
     return () => {
       unsubscribeInventory()
       unsubscribeAlertas()
+      unsubscribeClinica()
       stopSync()
     }
-  }, [usuario, subscribeInventory, subscribeAlertas])
+  }, [usuario, subscribeInventory, subscribeAlertas, subscribeClinica])
 
   return (
     <main className="flex min-h-dvh flex-col items-center gap-4 bg-bg p-6 text-center">
@@ -60,12 +79,12 @@ function App() {
         <div className="flex w-full max-w-md flex-col items-stretch gap-4 text-left">
           <AppHeader onSignOut={() => void signOut()} />
 
-          <BottomNav active={vista} onChange={setVista} />
+          <BottomNav active={vista} onChange={setVista} alertasBadge={alertasBadge} />
 
           {vista === 'inventario' && <InventarioView />}
           {vista === 'compras' && <ComprasView />}
           {vista === 'alertas' && <AlertasView />}
-          {vista === 'mas' && <MasView />}
+          {vista === 'mas' && <AjustesView />}
 
           <AvisosConsumo />
         </div>

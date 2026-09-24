@@ -10,6 +10,7 @@ vi.mock('../../src/lib/db', async () => {
       lotes: new MemoryTable(),
       movimientos: new MemoryTable(),
       configuracionAlertas: new MemoryTable(),
+      configuracionClinica: new MemoryTable(),
       cambiosInsumo: new MemoryTable(),
       categorias: new MemoryTable(),
       itemsCompra: new MemoryTable(),
@@ -100,6 +101,7 @@ function categoria(overrides: Partial<Categoria>): Categoria {
     creadoEn: '2026-01-01T00:00:00.000Z',
     sincronizado: false,
     rechazadoEn: null,
+    desactivadoEn: null,
     ...overrides,
   }
 }
@@ -178,6 +180,26 @@ describe('pushCategorias (spec 008 contracts/supabase-schema.md step 0)', () => 
     expect(categoriasT.all()[0]).toMatchObject({
       sincronizado: false,
       rechazadoEn: null,
+    })
+  })
+
+  it('pushes a renamed/deactivated category with its desactivado_en (spec 010)', async () => {
+    categoriasT.seed([
+      categoria({
+        id: 'cat-1',
+        nombre: 'Ortodoncia Renombrada',
+        creadoPor: 'admin-1',
+        sincronizado: false,
+        desactivadoEn: '2026-09-24T00:00:00.000Z',
+      }),
+    ])
+
+    await runSyncBatch()
+
+    expect(categoriasT.all()[0].sincronizado).toBe(true)
+    expect(tabla('categorias').get('cat-1')).toMatchObject({
+      nombre: 'Ortodoncia Renombrada',
+      desactivado_en: '2026-09-24T00:00:00.000Z',
     })
   })
 })
@@ -268,5 +290,20 @@ describe('pullCategorias', () => {
     expect(local1?.rechazadoEn).not.toBeNull()
     const local2 = await db.categorias.get('cat-2')
     expect(local2).toMatchObject({ nombre: 'Ortodoncia', sincronizado: true })
+  })
+
+  it('pulls a remote desactivado_en into the local row (spec 010)', async () => {
+    tabla('categorias').set('cat-3', {
+      id: 'cat-3',
+      nombre: 'Endodoncia',
+      creado_por: 'admin-1',
+      creado_en: '2026-01-01T00:00:00.000Z',
+      desactivado_en: '2026-09-24T00:00:00.000Z',
+    })
+
+    await runSyncBatch()
+
+    const local3 = await db.categorias.get('cat-3')
+    expect(local3?.desactivadoEn).toBe('2026-09-24T00:00:00.000Z')
   })
 })

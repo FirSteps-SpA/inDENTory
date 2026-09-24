@@ -221,3 +221,29 @@ export const Trash = makeIcon(() => (
     <path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" />
   </>
 ))
+
+export const User = makeIcon(() => (
+  <>
+    <circle cx="12" cy="8" r="4" />
+    <path d="M4 21c0-4 3.58-7 8-7s8 3 8 7" />
+  </>
+))
+
+export const Building = makeIcon(() => (
+  <>
+    <rect x="4" y="2" width="16" height="20" rx="1" />
+    <line x1="9" y1="7" x2="9" y2="7.01" />
+    <line x1="15" y1="7" x2="15" y2="7.01" />
+    <line x1="9" y1="12" x2="9" y2="12.01" />
+    <line x1="15" y1="12" x2="15" y2="12.01" />
+    <line x1="9" y1="17" x2="9" y2="17.01" />
+    <line x1="15" y1="17" x2="15" y2="17.01" />
+  </>
+))
+
+export const Tag = makeIcon(() => (
+  <>
+    <path d="M20.59 13.41 11 3.83A2 2 0 0 0 9.59 3.24H4a1 1 0 0 0-1 1v5.59a2 2 0 0 0 .59 1.41l9.58 9.59a2 2 0 0 0 2.83 0l4.59-4.59a2 2 0 0 0 0-2.83Z" />
+    <circle cx="7.5" cy="7.5" r="1.25" />
+  </>
+))

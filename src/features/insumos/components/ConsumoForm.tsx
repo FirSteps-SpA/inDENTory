@@ -26,7 +26,7 @@ import { TouchButton } from '../../../components/ui/TouchButton'
  * llega preseleccionado y no se muestra la búsqueda; el override manual de
  * lote sigue listando lotes caducados con stock — la vía explícita para
  * consumirlos (Clarification Q1). `onDone` se llama tras un consumo exitoso.
- * Sin props se comporta igual que antes (MasView).
+ * Sin props muestra la búsqueda completa, como en la spec 002 original.
  */
 export interface ConsumoFormProps {
   insumoInicial?: Insumo

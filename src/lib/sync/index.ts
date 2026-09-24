@@ -5,6 +5,7 @@ import {
   type CambioInsumo,
   type Categoria,
   type ConfiguracionAlertas,
+  type ConfiguracionClinica,
   type Insumo,
   type ItemCompra,
   type Lote,
@@ -71,6 +72,8 @@ interface CategoriaRow {
   nombre: string
   creado_por: string
   creado_en: string
+  /** Feature 010 — `null` = activa. */
+  desactivado_en?: string | null
 }
 
 function toCategoriaRow(categoria: Categoria): CategoriaRow {
@@ -79,6 +82,7 @@ function toCategoriaRow(categoria: Categoria): CategoriaRow {
     nombre: categoria.nombre,
     creado_por: categoria.creadoPor,
     creado_en: categoria.creadoEn,
+    desactivado_en: categoria.desactivadoEn,
   }
 }
 
@@ -90,6 +94,7 @@ function fromCategoriaRow(row: CategoriaRow): Categoria {
     creadoEn: row.creado_en,
     sincronizado: true,
     rechazadoEn: null,
+    desactivadoEn: row.desactivado_en ?? null,
   }
 }
 
@@ -195,6 +200,29 @@ function fromConfiguracionAlertasRow(
   return {
     id: row.id,
     nivelesAvisoDias: row.niveles_aviso_dias,
+  }
+}
+
+interface ConfiguracionClinicaRow {
+  id: 'global'
+  nombre: string | null
+}
+
+function toConfiguracionClinicaRow(
+  config: ConfiguracionClinica,
+): ConfiguracionClinicaRow {
+  return {
+    id: config.id,
+    nombre: config.nombre,
+  }
+}
+
+function fromConfiguracionClinicaRow(
+  row: ConfiguracionClinicaRow,
+): ConfiguracionClinica {
+  return {
+    id: row.id,
+    nombre: row.nombre ?? null,
   }
 }
 
@@ -548,6 +576,15 @@ async function pushConfiguracionAlertas(client: SupabaseClient): Promise<void> {
     .upsert(toConfiguracionAlertasRow(config))
 }
 
+/** Pushes the local clinic-name row, if an administrador has ever saved one (spec 010 FR-020). */
+async function pushConfiguracionClinica(client: SupabaseClient): Promise<void> {
+  const config = await db.configuracionClinica.get('global')
+  if (!config) return
+  await client
+    .from('configuracion_clinica')
+    .upsert(toConfiguracionClinicaRow(config))
+}
+
 async function pullInsumos(client: SupabaseClient): Promise<void> {
   const { data, error } = await client.from('insumos').select('*')
   if (error || !data) return
@@ -576,6 +613,19 @@ async function pullConfiguracionAlertas(client: SupabaseClient): Promise<void> {
   if (error || !data) return
   await db.configuracionAlertas.put(
     fromConfiguracionAlertasRow(data as ConfiguracionAlertasRow),
+  )
+}
+
+/** Pulls the remote clinic-name row, if one has ever been saved (spec 010 FR-020). */
+async function pullConfiguracionClinica(client: SupabaseClient): Promise<void> {
+  const { data, error } = await client
+    .from('configuracion_clinica')
+    .select('*')
+    .eq('id', 'global')
+    .maybeSingle()
+  if (error || !data) return
+  await db.configuracionClinica.put(
+    fromConfiguracionClinicaRow(data as ConfiguracionClinicaRow),
   )
 }
 
@@ -626,6 +676,7 @@ export async function runSyncBatch(): Promise<void> {
   await pushLotes(client)
   await pushItemsCompra(client)
   await pushConfiguracionAlertas(client)
+  await pushConfiguracionClinica(client)
   for (const loteId of await pushMovimientos(client)) {
     loteIdsTocados.add(loteId)
   }
@@ -633,6 +684,7 @@ export async function runSyncBatch(): Promise<void> {
   await pullLotes(client)
   await pullItemsCompra(client)
   await pullConfiguracionAlertas(client)
+  await pullConfiguracionClinica(client)
   for (const loteId of await pullMovimientos(client)) {
     loteIdsTocados.add(loteId)
   }

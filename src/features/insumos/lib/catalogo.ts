@@ -109,7 +109,13 @@ export function validarEdicionInsumo(
     errores.nombre = 'Ya existe otro insumo con ese nombre.'
   }
 
-  if (resolverCategoria(resultado.categoria, catalogo) === null) {
+  // Solo se valida contra el catálogo ofrecible cuando la categoría es
+  // parte del cambio (spec 010 FR-017): editar otro campo de un insumo cuya
+  // categoría ya fue desactivada no debe bloquearse por eso.
+  if (
+    'categoria' in cambios &&
+    resolverCategoria(resultado.categoria, catalogo) === null
+  ) {
     errores.categoria = 'Elige una categoría existente.'
   }
 
@@ -130,7 +136,8 @@ export function validarEdicionInsumo(
     : { valido: false, errores }
 }
 
-function exigirAdministrador(accion: string): string {
+/** Exported for reuse outside this module (spec 010 — `categoriasAdmin.ts`/`clinica.ts`). */
+export function exigirAdministrador(accion: string): string {
   const usuario = useAuthStore.getState().usuario
   if (usuario?.rol !== 'administrador') {
     throw new Error(`Solo un administrador puede ${accion} insumos.`)
@@ -138,7 +145,8 @@ function exigirAdministrador(accion: string): string {
   return usuario.id
 }
 
-function nuevoCambio(
+/** Exported for reuse outside this module (spec 010 — `categoriasAdmin.ts`). */
+export function nuevoCambio(
   insumoId: string,
   campo: CambioInsumo['campo'],
   valorAnterior: CambioInsumo['valorAnterior'],
@@ -233,6 +241,29 @@ export async function darDeBajaInsumo(insumoId: string): Promise<void> {
 
     await db.cambiosInsumo.add(
       nuevoCambio(insumoId, 'baja', null, true, usuarioId),
+    )
+    await reproyectarEnTransaccion([insumoId])
+  })
+}
+
+/**
+ * Restaura un insumo dado de baja (spec 010 FR-023/024): inversa de
+ * `darDeBajaInsumo` — un `CambioInsumo` `'baja'` con `valorNuevo: null` +
+ * reproyección (research.md R2: la más reciente de estas entradas manda).
+ * Solo administradores. No-op si el insumo ya está activo. No reconstruye
+ * nada: sus lotes y movimientos nunca se borraron (spec 007), solo estaban
+ * ocultos de las vistas operativas.
+ */
+export async function restaurarInsumo(insumoId: string): Promise<void> {
+  const usuarioId = exigirAdministrador('restaurar')
+
+  await db.transaction('rw', db.insumos, db.cambiosInsumo, async () => {
+    const insumo = await db.insumos.get(insumoId)
+    if (!insumo) throw new Error('El insumo no existe.')
+    if (!insumo.dadoDeBajaEn) return
+
+    await db.cambiosInsumo.add(
+      nuevoCambio(insumoId, 'baja', true, null, usuarioId),
     )
     await reproyectarEnTransaccion([insumoId])
   })

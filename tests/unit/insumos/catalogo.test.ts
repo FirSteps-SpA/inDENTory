@@ -27,6 +27,7 @@ import { useAuthStore } from '../../../src/stores/authStore'
 import {
   darDeBajaInsumo,
   editarInsumo,
+  restaurarInsumo,
   validarEdicionInsumo,
 } from '../../../src/features/insumos/lib/catalogo'
 import { catalogoCategorias } from '../../../src/features/insumos/lib/categorias'
@@ -132,6 +133,7 @@ describe('validarEdicionInsumo (FR-014)', () => {
           creadoEn: '2026-01-01T00:00:00.000Z',
           sincronizado: false,
           rechazadoEn: null,
+          desactivadoEn: null,
         },
       ],
       activos,
@@ -202,6 +204,7 @@ describe('editarInsumo (FR-012/FR-013/FR-015)', () => {
         creadoEn: '2026-01-01T00:00:00.000Z',
         sincronizado: false,
         rechazadoEn: null,
+        desactivadoEn: null,
       },
     ])
 
@@ -231,5 +234,33 @@ describe('darDeBajaInsumo (FR-018, Clarification Q5)', () => {
       dadoDeBajaEn: expect.any(String),
     })
     expect(movimientosT.all()).toHaveLength(0)
+  })
+})
+
+describe('restaurarInsumo (spec 010 FR-023/024)', () => {
+  it('throws for personal', async () => {
+    useAuthStore.setState({ usuario: personal })
+    await expect(restaurarInsumo('i1')).rejects.toThrow(/administrador/)
+  })
+
+  it('is a no-op when the insumo is already active', async () => {
+    await restaurarInsumo('i1')
+
+    expect(cambiosT.all()).toHaveLength(0)
+    expect((await db.insumos.get('i1'))!.dadoDeBajaEn).toBeNull()
+  })
+
+  it('reverts a dado-de-baja insumo back to activo, recorded in the ledger', async () => {
+    await darDeBajaInsumo('i1')
+
+    await restaurarInsumo('i1')
+
+    const cambios = cambiosT.all().filter((c) => c.campo === 'baja')
+    expect(cambios).toHaveLength(2)
+    expect(cambios[1]).toMatchObject({ valorAnterior: true, valorNuevo: null })
+    expect(await db.insumos.get('i1')).toMatchObject({
+      dadoDeBajaEn: null,
+      dadoDeBajaPor: null,
+    })
   })
 })

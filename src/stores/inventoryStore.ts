@@ -30,6 +30,8 @@ import { claveCategoria } from '../features/insumos/lib/categorias'
  */
 interface InventoryState {
   insumos: Insumo[]
+  /** Feature 010 (FR-022) — insumos con baja lógica activa, para "Ajustes" ▸ "Insumos dados de baja". */
+  insumosDadosDeBaja: Insumo[]
   lotes: Lote[]
   movimientos: Movimiento[]
   cambiosInsumo: CambioInsumo[]
@@ -41,6 +43,7 @@ interface InventoryState {
 
 export const useInventoryStore = create<InventoryState>((set) => ({
   insumos: [],
+  insumosDadosDeBaja: [],
   lotes: [],
   movimientos: [],
   cambiosInsumo: [],
@@ -52,6 +55,7 @@ export const useInventoryStore = create<InventoryState>((set) => ({
       next: (insumos) =>
         set({
           insumos: insumos.filter((insumo) => !insumo.dadoDeBajaEn),
+          insumosDadosDeBaja: insumos.filter((insumo) => !!insumo.dadoDeBajaEn),
           isReady: true,
         }),
     })

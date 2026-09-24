@@ -5,9 +5,11 @@ import { BottomNav, type Vista } from '../../src/app/BottomNav'
 import { InventarioView } from '../../src/features/insumos/components/InventarioView'
 import { ComprasView } from '../../src/features/compras/components/ComprasView'
 import { AlertasView } from '../../src/features/alertas/components/AlertasView'
-import { MasView } from '../../src/features/mas/components/MasView'
+import { AjustesView } from '../../src/features/ajustes/components/AjustesView'
 import { useInventoryStore } from '../../src/stores/inventoryStore'
+import { useAlertasStore } from '../../src/stores/alertasStore'
 import { useAuthStore } from '../../src/stores/authStore'
+import { contarAlertasPendientes } from '../../src/features/alertas/lib/resumen'
 
 vi.mock('../../src/lib/db', () => ({
   db: {
@@ -31,19 +33,37 @@ vi.mock('../../src/stores/authStore', async (importOriginal) => {
  */
 function NavHarness() {
   const [vista, setVista] = useState<Vista>('inventario')
+  const insumos = useInventoryStore((s) => s.insumos)
+  const lotes = useInventoryStore((s) => s.lotes)
+  const movimientos = useInventoryStore((s) => s.movimientos)
+  const nivelesAvisoDias = useAlertasStore((s) => s.nivelesAvisoDias)
+  const preferenciaStockBajo = useAlertasStore((s) => s.preferenciaStockBajo)
+  const preferenciaCaducidad = useAlertasStore((s) => s.preferenciaCaducidad)
+  const alertasBadge = contarAlertasPendientes(
+    insumos,
+    lotes,
+    movimientos,
+    nivelesAvisoDias,
+    { stockBajo: preferenciaStockBajo, caducidad: preferenciaCaducidad },
+  )
   return (
     <div>
-      <BottomNav active={vista} onChange={setVista} />
+      <BottomNav active={vista} onChange={setVista} alertasBadge={alertasBadge} />
       {vista === 'inventario' && <InventarioView />}
       {vista === 'compras' && <ComprasView />}
       {vista === 'alertas' && <AlertasView />}
-      {vista === 'mas' && <MasView />}
+      {vista === 'mas' && <AjustesView />}
     </div>
   )
 }
 
 afterEach(() => {
   useInventoryStore.setState({ insumos: [], lotes: [], movimientos: [], isReady: true })
+  useAlertasStore.setState({
+    nivelesAvisoDias: [30, 7, 1],
+    preferenciaStockBajo: true,
+    preferenciaCaducidad: true,
+  })
   useAuthStore.setState({ usuario: null, isReady: true })
 })
 
@@ -92,15 +112,96 @@ describe('4-tab navigation (User Story 4)', () => {
     expect(screen.getByText('Agregados Manualmente')).toBeInTheDocument()
   })
 
-  it('shows only "Consumir insumo" in Más — "Registrar insumo" was retired in favor of Compras (spec 009 FR-011)', () => {
+  it('no longer shows the retired "Consumir insumo" bridge in Más — Ajustes replaces it (spec 010 FR-001)', () => {
     render(<NavHarness />)
 
     fireEvent.click(screen.getByRole('button', { name: /Más/ }))
 
     expect(screen.queryByText('Registrar insumo')).not.toBeInTheDocument()
-    expect(screen.getByText('Consumir insumo')).toBeInTheDocument()
+    expect(screen.queryByText('Consumir insumo')).not.toBeInTheDocument()
+  })
+})
 
-    fireEvent.click(screen.getByText('Consumir insumo'))
-    expect(screen.getByText('Buscar insumo')).toBeInTheDocument()
+const insumoBajo = {
+  id: 'bajo',
+  nombre: 'Guantes',
+  categoria: 'Cirugía',
+  unidadMedida: 'caja',
+  permiteDecimales: false,
+  caduca: false,
+  codigoFabricante: null,
+  creadoEn: '2026-01-01T00:00:00.000Z',
+  stockMinimo: 100,
+  dadoDeBajaEn: null,
+  dadoDeBajaPor: null,
+  creadoPor: null,
+}
+const loteBajo = {
+  id: 'l-bajo',
+  insumoId: 'bajo',
+  numeroLote: 'L1',
+  proveedor: 'P',
+  fechaCaducidad: null,
+  codigoFabricante: null,
+  estado: 'activo' as const,
+  creadoEn: '2026-01-01T00:00:00.000Z',
+}
+const ingresoBajo = {
+  id: 'm1',
+  tipo: 'ingreso' as const,
+  loteId: 'l-bajo',
+  cantidad: 1,
+  usuarioId: 'u1',
+  movimientoOrigenId: null,
+  creadoEn: '2026-01-01T00:00:00.000Z',
+  sincronizado: true,
+}
+
+describe('Alertas badge (User Story 7, FR-025/026/028)', () => {
+  it('shows the pending-alert count on the Alertas icon by default', () => {
+    useInventoryStore.setState({
+      insumos: [insumoBajo],
+      lotes: [loteBajo],
+      movimientos: [ingresoBajo],
+      isReady: true,
+    })
+
+    render(<NavHarness />)
+
+    expect(screen.getByLabelText('1 alertas pendientes')).toBeInTheDocument()
+  })
+
+  it('hides the badge when stock bajo is disabled and it was the only alert', () => {
+    useInventoryStore.setState({
+      insumos: [insumoBajo],
+      lotes: [loteBajo],
+      movimientos: [ingresoBajo],
+      isReady: true,
+    })
+    useAlertasStore.setState({ preferenciaStockBajo: false })
+
+    render(<NavHarness />)
+
+    expect(screen.queryByLabelText(/alertas pendientes/)).not.toBeInTheDocument()
+  })
+
+  it('hides the badge entirely when both preferences are off, without affecting Alertas itself', () => {
+    useInventoryStore.setState({
+      insumos: [insumoBajo],
+      lotes: [loteBajo],
+      movimientos: [ingresoBajo],
+      isReady: true,
+    })
+    useAlertasStore.setState({
+      preferenciaStockBajo: false,
+      preferenciaCaducidad: false,
+    })
+
+    render(<NavHarness />)
+
+    expect(screen.queryByLabelText(/alertas pendientes/)).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /Alertas/ }))
+    expect(screen.getByText(/Guantes/)).toBeInTheDocument()
   })
 })

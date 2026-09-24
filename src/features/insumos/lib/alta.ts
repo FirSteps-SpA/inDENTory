@@ -185,6 +185,7 @@ export async function darDeAltaMaterial(
             creadoEn: new Date().toISOString(),
             sincronizado: false,
             rechazadoEn: null,
+            desactivadoEn: null,
           }
           await db.categorias.add(nuevaCategoria)
           categoriaNombre = nuevaCategoria.nombre
