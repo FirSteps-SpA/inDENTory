@@ -5,6 +5,7 @@ import {
   type CambioInsumo,
   type Categoria,
   type Insumo,
+  type ItemCompra,
   type Lote,
   type Movimiento,
 } from '../lib/db'
@@ -33,6 +34,7 @@ interface InventoryState {
   movimientos: Movimiento[]
   cambiosInsumo: CambioInsumo[]
   categorias: Categoria[]
+  itemsCompra: ItemCompra[]
   isReady: boolean
   subscribe: () => () => void
 }
@@ -43,6 +45,7 @@ export const useInventoryStore = create<InventoryState>((set) => ({
   movimientos: [],
   cambiosInsumo: [],
   categorias: [],
+  itemsCompra: [],
   isReady: false,
   subscribe: () => {
     const insumosSub = liveQuery(() => db.insumos.toArray()).subscribe({
@@ -64,12 +67,16 @@ export const useInventoryStore = create<InventoryState>((set) => ({
     const categoriasSub = liveQuery(() => db.categorias.toArray()).subscribe({
       next: (categorias) => set({ categorias }),
     })
+    const itemsCompraSub = liveQuery(() => db.itemsCompra.toArray()).subscribe({
+      next: (itemsCompra) => set({ itemsCompra }),
+    })
     return () => {
       cambiosSub.unsubscribe()
       insumosSub.unsubscribe()
       lotesSub.unsubscribe()
       movimientosSub.unsubscribe()
       categoriasSub.unsubscribe()
+      itemsCompraSub.unsubscribe()
     }
   },
 }))

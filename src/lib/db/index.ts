@@ -132,6 +132,27 @@ export interface Borrador {
 }
 
 /**
+ * Feature 009 data-model.md — ItemCompra. Un pedido puntual agregado a mano
+ * a la lista de compras. Nunca se borra físicamente (research.md R1): pasa
+ * por `estado: 'pendiente' -> 'comprado' | 'eliminado'`. Se sincroniza sin
+ * bandera `sincronizado` (research.md R2) — mismo patrón que `Lote`.
+ */
+export interface ItemCompra {
+  id: string
+  nombre: string
+  cantidad: number | null
+  nota: string | null
+  /** Vínculo opcional a `Insumo.id` (FR-016); no se limpia por escritura si
+   *  ese insumo se da de baja (research.md R8) — se resuelve en memoria. */
+  insumoId: string | null
+  estado: 'pendiente' | 'comprado' | 'eliminado'
+  creadoPor: string
+  creadoEn: string
+  compradoPor: string | null
+  compradoEn: string | null
+}
+
+/**
  * IndexedDB client (Constitution I: local-first primary write, Principle IV:
  * batch/expiry/stock queries). Future inventory features add their own
  * domain tables here via `db.version(n).stores({...})`.
@@ -145,6 +166,7 @@ export const db = new Dexie('inDENToryDB') as Dexie & {
   cambiosInsumo: EntityTable<CambioInsumo, 'id'>
   categorias: EntityTable<Categoria, 'id'>
   borradores: EntityTable<Borrador, 'id'>
+  itemsCompra: EntityTable<ItemCompra, 'id'>
 }
 
 db.version(1).stores({
@@ -199,5 +221,12 @@ db.version(5)
         insumo.creadoPor ??= null
       }),
   )
+
+// version(6): feature 009 (data-model.md) — new `itemsCompra` table, never
+// synced via a `sincronizado` flag (research.md R2, same pattern as
+// `lotes`). No existing table changes shape, so no `.upgrade()`.
+db.version(6).stores({
+  itemsCompra: 'id, insumoId, estado, creadoEn',
+})
 
 export type { EntityTable }

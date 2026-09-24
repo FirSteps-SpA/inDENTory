@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { BottomNav, type Vista } from '../../src/app/BottomNav'
 import { InventarioView } from '../../src/features/insumos/components/InventarioView'
-import { ComprasPlaceholder } from '../../src/features/compras/components/ComprasPlaceholder'
+import { ComprasView } from '../../src/features/compras/components/ComprasView'
 import { AlertasView } from '../../src/features/alertas/components/AlertasView'
 import { MasView } from '../../src/features/mas/components/MasView'
 import { useInventoryStore } from '../../src/stores/inventoryStore'
@@ -35,7 +35,7 @@ function NavHarness() {
     <div>
       <BottomNav active={vista} onChange={setVista} />
       {vista === 'inventario' && <InventarioView />}
-      {vista === 'compras' && <ComprasPlaceholder />}
+      {vista === 'compras' && <ComprasView />}
       {vista === 'alertas' && <AlertasView />}
       {vista === 'mas' && <MasView />}
     </div>
@@ -82,26 +82,25 @@ describe('4-tab navigation (User Story 4)', () => {
     )
   })
 
-  it('shows a recognizable placeholder for Compras instead of an error or blank screen (FR-015)', () => {
+  it('shows the full Compras view instead of an error or blank screen (spec 009 FR-001/FR-002)', () => {
     render(<NavHarness />)
 
     fireEvent.click(screen.getByRole('button', { name: /Compras/ }))
 
     expect(screen.getByRole('heading', { name: 'Compras' })).toBeInTheDocument()
-    expect(
-      screen.getByText(/próximamente/),
-    ).toBeInTheDocument()
+    expect(screen.getByText('Sugeridos por el Sistema')).toBeInTheDocument()
+    expect(screen.getByText('Agregados Manualmente')).toBeInTheDocument()
   })
 
-  it('shows the bridge actions in Más and opens RegistroForm/ConsumoForm unchanged (FR-015)', () => {
+  it('shows only "Consumir insumo" in Más — "Registrar insumo" was retired in favor of Compras (spec 009 FR-011)', () => {
     render(<NavHarness />)
 
     fireEvent.click(screen.getByRole('button', { name: /Más/ }))
 
-    expect(screen.getByText('Registrar insumo')).toBeInTheDocument()
+    expect(screen.queryByText('Registrar insumo')).not.toBeInTheDocument()
     expect(screen.getByText('Consumir insumo')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByText('Registrar insumo'))
+    fireEvent.click(screen.getByText('Consumir insumo'))
     expect(screen.getByText('Buscar insumo')).toBeInTheDocument()
   })
 })

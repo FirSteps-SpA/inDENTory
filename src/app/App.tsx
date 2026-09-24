@@ -8,7 +8,7 @@ import { LoginForm } from '../features/auth/LoginForm'
 import { useLogout } from '../features/auth/useLogout'
 import { AlertasView } from '../features/alertas/components/AlertasView'
 import { InventarioView } from '../features/insumos/components/InventarioView'
-import { ComprasPlaceholder } from '../features/compras/components/ComprasPlaceholder'
+import { ComprasView } from '../features/compras/components/ComprasView'
 import { MasView } from '../features/mas/components/MasView'
 import { AppHeader } from './AppHeader'
 import { AvisosConsumo } from './AvisosConsumo'
@@ -63,7 +63,7 @@ function App() {
           <BottomNav active={vista} onChange={setVista} />
 
           {vista === 'inventario' && <InventarioView />}
-          {vista === 'compras' && <ComprasPlaceholder />}
+          {vista === 'compras' && <ComprasView />}
           {vista === 'alertas' && <AlertasView />}
           {vista === 'mas' && <MasView />}
 

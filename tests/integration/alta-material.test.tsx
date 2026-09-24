@@ -51,7 +51,7 @@ import { useAuthStore } from '../../src/stores/authStore'
 import { useAvisosStore } from '../../src/stores/avisosStore'
 import { darDeBajaInsumo } from '../../src/features/insumos/lib/catalogo'
 import { InventarioView } from '../../src/features/insumos/components/InventarioView'
-import { RegistroForm } from '../../src/features/insumos/components/RegistroForm'
+import { SearchPicker } from '../../src/features/insumos/components/SearchPicker'
 import { AvisosConsumo } from '../../src/app/AvisosConsumo'
 
 const insumosT = db.insumos as unknown as MemoryTable<Insumo>
@@ -98,9 +98,15 @@ function reflejarStore() {
   })
 }
 
-/** Combines InventarioView + RegistroForm behind a nav so "from Registrar" scenarios can be exercised. */
+/**
+ * Combines InventarioView + a bare `SearchPicker` behind a nav so "opened
+ * from a search other than Inventario" scenarios can be exercised (spec 009
+ * retired `RegistroForm`; `SearchPicker`'s "Crear insumo nuevo" is the
+ * generic entry point it and `ConsumoForm` both share).
+ */
 function Harness() {
   const [vista, setVista] = useState<'inventario' | 'registrar'>('inventario')
+  const [mensaje, setMensaje] = useState<string | null>(null)
   return (
     <div>
       <button type="button" onClick={() => setVista('inventario')}>
@@ -109,7 +115,22 @@ function Harness() {
       <button type="button" onClick={() => setVista('registrar')}>
         Ir a Registrar
       </button>
-      {vista === 'inventario' ? <InventarioView /> : <RegistroForm />}
+      {vista === 'inventario' ? (
+        <InventarioView />
+      ) : (
+        <div className="flex flex-col gap-3">
+          {mensaje && <p role="status">{mensaje}</p>}
+          <SearchPicker
+            onSelect={(selected, opciones) => {
+              setMensaje(
+                opciones?.conLoteInicial
+                  ? `Lote de "${selected.nombre}" registrado.`
+                  : null,
+              )
+            }}
+          />
+        </div>
+      )}
       <AvisosConsumo />
     </div>
   )

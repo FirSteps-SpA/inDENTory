@@ -6,6 +6,7 @@ import {
   type Categoria,
   type ConfiguracionAlertas,
   type Insumo,
+  type ItemCompra,
   type Lote,
   type Movimiento,
 } from '../db'
@@ -89,6 +90,49 @@ function fromCategoriaRow(row: CategoriaRow): Categoria {
     creadoEn: row.creado_en,
     sincronizado: true,
     rechazadoEn: null,
+  }
+}
+
+interface ItemCompraRow {
+  id: string
+  nombre: string
+  cantidad: number | null
+  nota: string | null
+  insumo_id: string | null
+  estado: ItemCompra['estado']
+  creado_por: string
+  creado_en: string
+  comprado_por: string | null
+  comprado_en: string | null
+}
+
+function toItemCompraRow(item: ItemCompra): ItemCompraRow {
+  return {
+    id: item.id,
+    nombre: item.nombre,
+    cantidad: item.cantidad,
+    nota: item.nota,
+    insumo_id: item.insumoId,
+    estado: item.estado,
+    creado_por: item.creadoPor,
+    creado_en: item.creadoEn,
+    comprado_por: item.compradoPor,
+    comprado_en: item.compradoEn,
+  }
+}
+
+function fromItemCompraRow(row: ItemCompraRow): ItemCompra {
+  return {
+    id: row.id,
+    nombre: row.nombre,
+    cantidad: row.cantidad ?? null,
+    nota: row.nota ?? null,
+    insumoId: row.insumo_id ?? null,
+    estado: row.estado,
+    creadoPor: row.creado_por,
+    creadoEn: row.creado_en,
+    compradoPor: row.comprado_por ?? null,
+    compradoEn: row.comprado_en ?? null,
   }
 }
 
@@ -463,6 +507,19 @@ async function pushLotes(client: SupabaseClient): Promise<void> {
   await client.from('lotes').upsert(lotes.map(toLoteRow))
 }
 
+/**
+ * Sube todas las filas locales de `itemsCompra` cada ciclo (research.md R2):
+ * a diferencia de `categorias`/`cambios_insumo`, ninguna escritura puede ser
+ * rechazada por rol (spec Clarifications: abierto a todo autenticado), así
+ * que no hace falta una bandera `sincronizado` ni reintento por fila — mismo
+ * patrón simple que `pushLotes`.
+ */
+async function pushItemsCompra(client: SupabaseClient): Promise<void> {
+  const items = await db.itemsCompra.toArray()
+  if (items.length === 0) return
+  await client.from('items_compra').upsert(items.map(toItemCompraRow))
+}
+
 /** Pushes unsynced movimientos and returns the loteIds of any `consumo` rows just pushed. */
 async function pushMovimientos(client: SupabaseClient): Promise<string[]> {
   const todos = await db.movimientos.toArray()
@@ -501,6 +558,12 @@ async function pullLotes(client: SupabaseClient): Promise<void> {
   const { data, error } = await client.from('lotes').select('*')
   if (error || !data) return
   await db.lotes.bulkPut((data as LoteRow[]).map(fromLoteRow))
+}
+
+async function pullItemsCompra(client: SupabaseClient): Promise<void> {
+  const { data, error } = await client.from('items_compra').select('*')
+  if (error || !data) return
+  await db.itemsCompra.bulkPut((data as ItemCompraRow[]).map(fromItemCompraRow))
 }
 
 /** Pulls the remote global config row, if one has ever been saved (feature 004, FR-005). */
@@ -561,12 +624,14 @@ export async function runSyncBatch(): Promise<void> {
   }
 
   await pushLotes(client)
+  await pushItemsCompra(client)
   await pushConfiguracionAlertas(client)
   for (const loteId of await pushMovimientos(client)) {
     loteIdsTocados.add(loteId)
   }
 
   await pullLotes(client)
+  await pullItemsCompra(client)
   await pullConfiguracionAlertas(client)
   for (const loteId of await pullMovimientos(client)) {
     loteIdsTocados.add(loteId)
